@@ -1,0 +1,141 @@
+--- PAGE 1 ---
+PRD: SIGAP-TRANS KALSEL • Disnakertrans Prov. Kalsel (124 UPT) 
+PRODUCT REQUIREMENTS DOCUMENT (PRD) — v1.0 APPROVED 
+SIGAP-TRANS KALSEL 
+Sistem Informasi Geospasial Administrasi & Persebaran Transmigrasi Provinsi Kalimantan Selatan (1953–2025) 
+ 
+Dokumen Induk: Proposal WebGIS Terverifikasi Cakupan Data: 124 UPT di 9 Kabupaten Se-Kalsel Klasifikasi Sistem: Kedinasan & Super Admin 
+1. Overview 
+1.1 Latar Belakang & Permasalahan 
+Dalam kurun waktu lebih dari 70 tahun penyelenggaraan transmigrasi di Kalimantan Selatan (1953–2025), Pemerintah Daerah telah 
+mengawal penempatan sebanyak 63.701 KK (256.307 Jiwa) dan menerima penyerahan definitif sebanyak 64.942 KK (262.871 Jiwa) 
+yang tersebar di 124 Unit Pemukiman Transmigrasi (UPT) pada 9 kabupaten (Tapin, HSU, Balangan, Tabalong, Tanah Laut, Barito 
+Kuala, Kota Baru, Tanah Bumbu, dan Banjar). 
+Tantangan utama yang dihadapi saat ini meliputi: (1) arsip Berita Acara Serah Terima (BAST) fisik dan lembar kerja lepas yang  rawan 
+rusak, (2) disorientasi nama Satuan Pemukiman (SP) lama yang kini telah mekar menjadi desa definitif mandiri, (3) pemantauan 
+legalitas lahan/sertifikasi (SHM) dan potensi tumpang tindih kawasan hutan/tambang yang belum terpetakan secara visual, serta  (4) 
+pelaporan pimpinan daerah yang masih dilakukan secara manual. 
+1.2 Tujuan Produk 
+Membangun platform WebGIS berbasis web sebagai portal data terpusat (single source of truth) yang memadukan titik koordinat 
+riil, batas wilayah spasial, atribut demografi historis, status legalitas agraria, repositori digital berkas BAST, serta dasbor kendali 
+operasional terpadu bagi Super Admin Provinsi dan Pimpinan Daerah. 
+1.3 Target Pengguna (User Personas) 
+• Super Admin (Disnakertrans Provinsi): Memiliki kendali penuh atas manajemen pengguna bertingkat, verifikasi dan approval entri 
+data dari kabupaten, pengelolaan repositori e-arsip BAST, audit log, dan pemeliharaan basis data. 
+• Admin / Operator Kabupaten (Disnakertrans 9 Kab): Bertanggung jawab menginput dan memutakhirkan rincian 124 UPT di 
+wilayahnya, memperbarui catatan permasalahan lapangan, serta mengunggah berkas scan dokumen BAST. 
+• Pimpinan Eksekutif (Kadis / Kabid Transmigrasi / Bappeda): Mengakses ringkasan agregat provinsi, memantau titik rawan sengketa 
+lahan via traffic light indicator, dan mengunduh laporan PDF/Excel resmi untuk bahan koordinasi daerah. 
+• Mitra Sektoral (Kanwil BPN / ATR): Memverifikasi riwayat alas hak eks-transmigrasi guna percepatan redistribusi tanah dan 
+penerbitan sertifikat hak milik (SHM). 
+2. Requirements 
+2.1 Kebutuhan Fungsional (Functional Requirements) 
+• FR-01 (Visualisasi Peta Interaktif): Menampilkan sebaran 124 lokasi UPT di 9 kabupaten dengan fitur marker clustering dan pilihan 
+basemap (Peta Jalan & Citra Satelit). 
+• FR-02 (Kartu Informasi UPT): Menyajikan modal/popup ringkasan nomor UPT (1–124), nama UPT lama vs desa definitif, pola usaha 
+(TPLK, TPLB, PIRSUS, HTI), tahun penempatan vs serah terima, dinamika KK/jiwa, dan rekam permasalahan. 
+• FR-03 (Lampu Indikator Legalitas Lahan): Menampilkan status tanah berbasis kode warna pin (🟢 Hijau = Clean & Clear, 🟡 Kuning = 
+Monitoring/Pemeliharaan, 🔴 Merah = Prioritas Mediasi Sengketa). 
+• FR-04 (Penyaringan Spasial Multi-Kriteria): Menyaring tampilan peta berdasarkan 9 kabupaten, dekade penempatan (1953–2025), 
+tipe komoditas/pola usaha, dan status sengketa. 
+• FR-05 (Repositori E-Arsip BAST): Fasilitas unggah, preview PDF, dan unduh berkas scan dokumen Berita Acara Serah Terima (BAST) 
+dan SK Pelepasan Kawasan. 
+• FR-06 (Dasbor Super Admin): Modul manajemen akun (RBAC), approval workflow perubahan data dari operator kabupaten, 
+pemantauan audit log aktivitas sistem, dan modul backup data otomatis. 
+--- PAGE 2 ---
+PRD: SIGAP-TRANS KALSEL • Disnakertrans Prov. Kalsel (124 UPT) 
+• FR-07 (Dasbor Eksekutif & Ekspor): Visualisasi akumulasi provinsi (63.701 KK Penempatan & 64.942 KK Penyerahan) serta cetak 
+laporan resmi 1-klik ke format PDF kedinasan dan file Excel (.xlsx). 
+2.2 Kebutuhan Non-Fungsional (Non-Functional Requirements) 
+• Performa: Pemuatan awal peta < 2,5 detik dengan optimasi vector tiling dan kompresi GeoJSON. 
+• Keamanan: Autentikasi berbasis token/session aman, proteksi SQL Injection, enkripsi berkas dokumen di server, dan kontrol akses 
+ketat berbasis peran (RBAC). 
+• Kompatibilitas: Antarmuka responsif pada resolusi desktop, laptop, dan tablet. 
+• Integritas Data: Validasi ketat di level database untuk menjamin total akumulasi KK dan jiwa cocok 100% dengan dokumen rekapitulasi 
+dinas. 
+3. Core Features 
+Fase 1: Manajemen Basis Data Spasial & Geocoding (Pondasi Data) 
+Pembentukan skema basis data spasial master 9 kabupaten dan registrasi atribut dasar 124 UPT definitif. 
+Melakukan geocoding titik centroid (koordinat lat-long) 124 lokasi dan overlay batas administrasi desa definitif berdasarkan rujukan 
+BIG/BPS serta standardisasi riwayat angka KK/jiwa (1953–2025). 
+ 
+Fase 2: Engine WebGIS & Interaktivitas Peta (Modul WebGIS) 
+Pengembangan modul peta Leaflet.js dengan kemampuan clustering dinamis, kartu popup riwayat UPT, dan layer switcher peta tematik 
+desa. 
+Klasifikasi kode warna permasalahan lahan (Traffic Light Alert: Hijau, Kuning, Merah), serta panel filter spasial multi-kriteria (kabupaten, 
+dekade, pola usaha). 
+ 
+Fase 3: E-Arsip Digital & Dashboard Super Admin 
+Pusat kendali terpadu untuk Super Admin Provinsi: 
+• User & Role Management: Pengelolaan hak akses Super Admin, Admin Disnakertrans 9 Kabupaten, dan Akun Eksekutif. 
+• Approval Workflow: Mekanisme verifikasi sebelum perubahan data UPT atau berkas BAST dari kabupaten dipublikasikan ke portal. 
+• Audit Trail System: Pencatatan otomatis riwayat penambahan, modifikasi, penghapusan data, serta aktivitas unduh berkas. 
+• E-Arsip BAST Manager: Penyimpanan digital dokumen BAST dan SK penyerahan berbasis enkripsi storage. 
+• Database Maintenance: Utilitas pembuatan salinan cadangan (backup) dan monitoring kesehatan server. 
+ 
+Fase 4: Executive Dashboard & Ekspor Laporan Kedinasan (Finalisasi & Go-Live) 
+Penyediaan widget metrik eksekutif bagi pimpinan dinas untuk memantau capaian total KK/jiwa provinsi dan sebaran sengketa. 
+Tombol ekspor 1-klik laporan rekapitulasi Excel (.xlsx), cetak peta tematik PDF resmi ber-kop dinas, pelatihan operator, dan serah terima 
+sistem (Go-Live). 
+ 
+4. User Flow 
+4.1 Alur Kerja Super Admin (Pengendalian & Persetujuan) 
+Flow Super Admin 
+[Login Super Admin] ──► [Dashboard Super Admin] 
+                             │ 
+                             ├─► [Kelola Pengguna] ────► Tambah/Edit/Hapus Operator Kab & Eksekutif 
+--- PAGE 3 ---
+PRD: SIGAP-TRANS KALSEL • Disnakertrans Prov. Kalsel (124 UPT) 
+                             ├─► [Antrean Verifikasi] ─► Cek Perubahan Data UPT ──► Approve / Reject 
+                             ├─► [Repositori E-Arsip] ─► Validasi Berkas Scan BAST PDF 
+                             └─► [Audit & Backup] ─────► Pantau Log Aktivitas & Unduh Backup DB 
+ 
+4.2 Alur Kerja Operator Disnakertrans Kabupaten 
+Flow Operator Kabupaten 
+[Login Operator Kab] ──► [Daftar 124 UPT Kab. Terkait] ──► [Pilih Lokasi UPT] 
+                                                                  │ 
+                                                                  ▼ 
+[Notifikasi: Menunggu Approval Super Admin] ◄── [Upload PDF BAST & Update Status Tanah] 
+ 
+4.3 Alur Kerja Pimpinan Eksekutif & Stakeholder 
+Flow Eksekutif 
+[Akses Portal WebGIS] ──► [Dashboard Eksekutif: Ringkasan 63.701 KK Masuk & 64.942 KK Serah] 
+                                │ 
+                                ├─► [Filter Kabupaten / Dekade] ──► Peta Zoom ke Wilayah Terpilih 
+                                ├─► [Klik Pin Lokasi UPT] ────────► Tampil Kartu Riwayat & Legalitas 
+                                └─► [Tombol Ekspor] ──────────────► Unduh Peta PDF / Rekap Excel 
+ 
+5. Architecture 
+Sistem dirancang dengan arsitektur 3-Tier terstandarisasi untuk menjamin keamanan, performa tinggi, dan kemudahan 
+pemeliharaan berkala: 
+Diagram Arsitektur Sistem SIGAP-TRANS 
+┌────────────────────────────────────────────────────────────────────────┐ 
+│                        PRESENTATION LAYER                              │ 
+│  ┌─────────────────────────┐  ┌─────────────────────────────────────┐  │ 
+│  │     Portal WebGIS       │  │   Dashboard Super Admin & Eksekutif │  │ 
+│  │ (Leaflet.js + Map Tiles)│  │      (Tailwind CSS + Vue.js/Blade)  │  │ 
+│  └─────────────────────────┘  └─────────────────────────────────────┘  │ 
+└───────────────────────────────────┬────────────────────────────────────┘ 
+                                    │ HTTPS / RESTful API 
+┌───────────────────────────────────▼────────────────────────────────────┐ 
+│                     APPLICATION LAYER (BACKEND API)                    │ 
+│  ┌──────────────────────────────────────────────────────────────────┐  │ 
+│  │ Laravel 11/12 Engine                                             │  │ 
+│  │ ├─ Auth & Role-Based Access Control (Super Admin, Operator, Kadis)│  │ 
+│  │ ├─ Spatial Data Service (GeoJSON Converter & Clustering API)     │  │ 
+│  │ ├─ Approval Workflow Manager (Draft & Publish Verification)      │  │ 
+│  │ ├─ Document Vault Service (Upload, Storage Enkripsi, & Preview)  │  │ 
+│  │ └─ Reporting Engine (DomPDF / Snappy & Fast-Excel Exporter)      │  │ 
+│  └──────────────────────────────────────────────────────────────────┘  │ 
+--- PAGE 4 ---
+PRD: SIGAP-TRANS KALSEL • Disnakertrans Prov. Kalsel (124 UPT) 
+└───────────────────────────────────┬────────────────────────────────────┘ 
+                                    │ SQL Spatial / File I/O 
+┌───────────────────────────────────▼────────────────────────────────────┐ 
+│                     DATA & STORAGE PERSISTENCE LAYER                   │ 
+│  ┌───────────────────────────────────┐  ┌───────────────────────────┐  │ 
+│  │  PostgreSQL 16 + PostGIS Spatial  │  │   Secured Document Vault  │  │ 
+│  │  (Data Tabular, Titik, & Poligon) │  │   (Berkas Scan BAST / SK) │  │ 
+│  └───────────────────────────────────┘  └───────────────────────────┘  │ 
+└────────────────────────────────────────────────────────────────────────┘ 
+ 

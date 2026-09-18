@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -11,15 +12,28 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // Periksa ketersediaan uuid-ossp tanpa membatalkan transaksi SQL
+        $availUuid = DB::select("SELECT 1 FROM pg_available_extensions WHERE name = 'uuid-ossp'");
+        if (!empty($availUuid)) {
+            DB::statement('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"');
+        }
+
         Schema::create('users', function (Blueprint $table) {
-            $table->id();
-            $table->string('name');
-            $table->string('email')->unique();
+            $table->uuid('id')->primary()->default(DB::raw('gen_random_uuid()'));
+            $table->string('name', 100);
+            $table->string('nip', 30)->nullable()->unique();
+            $table->string('email', 100)->unique();
             $table->timestamp('email_verified_at')->nullable();
-            $table->string('password');
+            $table->string('password', 255);
+            $table->string('role', 30)->default('operator_kabupaten');
+            $table->unsignedInteger('regency_id')->nullable();
+            $table->boolean('is_active')->default(true);
             $table->rememberToken();
             $table->timestamps();
         });
+
+        // Check constraint untuk role pengguna
+        DB::statement("ALTER TABLE users ADD CONSTRAINT check_user_role CHECK (role IN ('super_admin', 'operator_kabupaten', 'eksekutif', 'mitra_bpn'))");
 
         Schema::create('password_reset_tokens', function (Blueprint $table) {
             $table->string('email')->primary();
@@ -29,7 +43,7 @@ return new class extends Migration
 
         Schema::create('sessions', function (Blueprint $table) {
             $table->string('id')->primary();
-            $table->foreignId('user_id')->nullable()->index();
+            $table->uuid('user_id')->nullable()->index();
             $table->string('ip_address', 45)->nullable();
             $table->text('user_agent')->nullable();
             $table->longText('payload');
@@ -42,8 +56,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('users');
-        Schema::dropIfExists('password_reset_tokens');
         Schema::dropIfExists('sessions');
+        Schema::dropIfExists('password_reset_tokens');
+        Schema::dropIfExists('users');
     }
 };

@@ -1,0 +1,572 @@
+--- PAGE 1 ---
+DOKUMEN DESAIN ANTARMUKA & ASCII WIREFRAME SISTEM
+SIGAP-TRANS KALSEL
+Sistem Informasi Geospasial Administrasi & Persebaran Transmigrasi Provinsi Kalimantan Selatan (1953–2025)
+Instansi Pembina: Disnakertrans Prov. Kalsel Cakupan Data Riil: 124 UPT di 9 Kabupaten Standar Wireframe: Multi-Role +
+Sidebar
+Petunjuk & Konvensi Simbol Wireframe: Dokumen ini memetakan seluruh antarmuka sistem berdasarkan alur kerja (workflow) pada PRD.
+Konvensi simbol yang digunakan: [•] Pilihan Radio Aktif, [ ] Menu / Checkbox, [v] Menu Dropdown, [Teks Tombol] Tombol Aksi, 🟢 /
+🟡 / 🔴
+ Status Lahan Agraria (Traffic Light System). 
+BAGIAN 1: ANTARMUKA PUBLIK & AUTENTIKASI
+1.1 Portal Peta Publik (Tamu / Masyarakat Umum - Tanpa Login)
+Antarmuka awal saat publik mengakses sistem. Tidak menggunakan sidebar dasbor agar tampilan peta Kalimantan Selatan tetap luas dan
+intuitif. Filter disajikan melalui panel kontrol mengambang (floating card). Akses bersifat Read-Only tanpa informasi sengketa internal dan
+tanpa tombol unduh BAST. 
++-----------------------------------------------------------------------------------------------+
+|  [LOGO PEMPROV]  SIGAP-TRANS KALSEL                                    [Masuk Kedinasan ->]  |
+|  Portal Informasi Geospasial Pemukiman Transmigrasi Kalimantan Selatan (1953 - 2025)          |
++-----------------------------------------------------------------------------------------------+
+| PANEL FILTER SPASIAL        | PETA INTERAKTIF SEBARAN 124 UPT KALSEL                          |
+|-----------------------------|-----------------------------------------------------------------|
+| [ Kabupaten/Kota        v ] | [Basemap: (•) Peta Jalan  ( ) Citra Satelit]    [Zoom: + | -]   |
+|   - Semua 9 Kabupaten -     |                                                                 |
+|                             |               ( 11 ) Tabalong                                   |
+| [ Era Dekade            v ] |                 •                                               |
+|   - Semua Dekade (53-25) -  |            ( 6 ) HSU      ( 3 ) Balangan                        |
+|                             |              •              •                                   |
+| [ Pola Usaha            v ] |         ( 9 ) Tapin                                             |
+|   [ ] TPLK   [ ] TPLB       |           •                                                     |
+|   [ ] PIRSUS [ ] HTI        |   ( 20 ) Batola    ( 11 ) Banjar                                |
+|                             |       •                •                    ( 39 ) Kota Baru    |
+| Status Lahan:               |                                                •                |
+|  (•) Semua  ( ) Clean Only  |          ( 23 ) Tala         ( 3 ) Tanbu                        |
+|                             |             •                   •                               |
+| [ Terapkan ] [ Reset ]      |                                                                 |
+|-----------------------------|-----------------------------------------------------------------|
+| STATISTIK PUBLIK            | Keterangan: Pin angka menunjukkan pengelompokan (clustering).   |
+| Total UPT  : 124 Lokasi     | Klik pin untuk memusatkan peta dan melihat profil desa.         |
+| Total Masuk: 63.701 KK      |                                                                 |
++-----------------------------------------------------------------------------------------------+
+1.2 Popup Informasi Dasar UPT (Tampilan Publik / Tamu)
+Jendela modal ringkas yang muncul ketika publik mengeklik salah satu pin UPT pada peta. Menyajikan riwayat umum namun mengunci
+berkas BAST dan catatan sengketa sensitif. 
++-------------------------------------------------------------+
+| INFORMASI UNIT PEMUKIMAN TRANSMIGRASI (UPT)             [X] |
++-------------------------------------------------------------+
+| No. Registrasi     : UPT-001 (Kabupaten Tapin)              |
+| Nama UPT Asal      : Tambarang dan Suato                    |
+| Desa Definitif     : Desa Suato Baru                        |
+| Pola Usaha         : TPLK (Tanaman Pangan Lahan Kering)     |
+| Penempatan Awal    : Tahun 1973/1975                        |
+| Jumlah Penempatan  : 800 KK / 4.269 Jiwa                    |
+| Serah Terima Pemda : Tahun 1977 (3.549 KK)                  |
+|-------------------------------------------------------------|
+| [i] Catatan Hak Akses:                                      |
+| Dokumen legalitas BAST dan catatan telaah agraria terkunci. |
+| Silakan login akun kedinasan untuk verifikasi alas hak.     |
++-------------------------------------------------------------+
+Dokumen Desain Antarmuka (ASCII Wireframe) • SIGAP-TRANS KALSEL (124 UPT) Halaman 1 dari 11
+--- PAGE 2 ---
+1.3 Halaman Login / Autentikasi Sistem Kedinasan
+Pintu gerbang autentikasi terpusat untuk aparatur Disnakertrans Kabupaten, Super Admin Provinsi, Pimpinan Eksekutif, dan Mitra Sektoral
+(Kanwil BPN). 
++-----------------------------------------------------------------------------------------------+
+|                                                                                               |
+|                                     [ LOGO DISNAKERTRANS ]                                    |
+|                                       SIGAP-TRANS KALSEL                                      |
+|                                Masuk Sistem Administrasi Terpadu                              |
+|                                                                                               |
+|                         +-------------------------------------------+                         |
+|                         | Username / NIP                            |                         |
+|                         | [ 197412272003121005                    ] |                         |
+|                         |                                           |                         |
+|                         | Kata Sandi                                |                         |
+|                         | [ ******************                   ] |                         |
+|                         |                                           |                         |
+|                         | Peran Kedinasan (Role)                    |                         |
+|                         | [ Operator Disnakertrans Kabupaten      v ] |                         |
+|                         |   - Operator Disnakertrans Kabupaten -    |                         |
+|                         |   - Super Admin Provinsi (Bid. Trans) -   |                         |
+|                         |   - Eksekutif (Kadis/Kabid/Bappeda) -     |                         |
+|                         |   - Mitra Sektoral (Kanwil BPN Kalsel) -  |                         |
+|                         |                                           |                         |
+|                         | [  MASUK KE SISTEM  ]                     |                         |
+|                         |                                           |                         |
+|                         | [<- Kembali ke Peta Publik]               |                         |
+|                         +-------------------------------------------+                         |
+|                                                                                               |
++-----------------------------------------------------------------------------------------------+
+Dokumen Desain Antarmuka (ASCII Wireframe) • SIGAP-TRANS KALSEL (124 UPT) Halaman 2 dari 11
+--- PAGE 3 ---
+BAGIAN 2: ANTARMUKA OPERATOR KABUPATEN (DENGAN SIDEBAR KERJA)
+2.1 Dasbor Wilayah Operator Kabupaten (Contoh: Disnakertrans Kab. Tapin)
+Dilengkapi sidebar kerja operasional untuk memantau ringkasan UPT binaan kabupaten, status pengajuan draf ke provinsi, serta notifikasi
+catatan revisi dari Super Admin. 
++----------------------------------------------------------------------------------------------------+
+|  [LOGO] SIGAP-TRANS KALSEL - SISTEM INFORMASI GEOSPASIAL TRANSMIGRASI     [🔔 1] [👤 Op. Tapin v]   |
++------------------------------------+---------------------------------------------------------------+
+| SIDEBAR OPERATOR KABUPATEN         | DASBOR WILAYAH: KABUPATEN TAPIN                               |
+|------------------------------------|---------------------------------------------------------------|
+| [👤] Ahmad Zaini, S.AP             | RINGKASAN CAPAIAN TRANSMIGRASI KABUPATEN TAPIN                |
+|      Operator Disnakertrans        | +-------------------+ +-------------------+ +---------------+ |
+|      Kabupaten Tapin               | | TOTAL UPT BINAAN  | | PENEMPATAN AWAL   | | SERAH TERIMA  | |
+|                                    | | 9 Lokasi          | | 2.800 KK          | | 3.549 KK      | |
+| MENU OPERATOR:                     | | (100% Terdata)    | | 12.023 Jiwa       | | 12.437 Jiwa   | |
+| [•] Dasbor Wilayah                 | +-------------------+ +-------------------+ +---------------+ |
+| [ ] Data 9 UPT Binaan              |                                                               |
+| [ ] Status Pengajuan       [ 1 ]   | STATUS LEGALITAS TANAH (9 UPT TAPIN):                         |
+| [ ] E-Arsip BAST Wilayah           | • 🟢 Clean & Clear (SHM Tuntas)   : 7 UPT                     |
+| [ ] Peta Kerja Wilayah             | • 🟡 Perlu Monitoring             : 1 UPT (Rawa Muning SP 1)  |
+|                                    | • 🔴 Prioritas Sengketa / Hutan   : 1 UPT (Miawa)             |
+| PANDUAN KERJA:                     |---------------------------------------------------------------|
+| [?] Format Dokumen BAST            | PEMBERITAHUAN TERBARU DARI SUPER ADMIN PROVINSI:              |
+| [?] SOP Pengajuan Revisi           | [!] Draf UPT Miawa: Catatan revisi telah dikirim.             |
+|------------------------------------|     "Lampirkan peta deliniasi batas kawasan hutan KPHP."      |
+| [⚙️ Akun Saya]    [🚪 Keluar]      |                                                               |
+|                                    | [ LIHAT CATATAN REVISI & PERBAIKI DATA -> ]                   |
++------------------------------------+---------------------------------------------------------------+
+2.2 Master Data UPT Binaan Kabupaten & Akses Pemutakhiran
+Tabel inventarisasi UPT khusus wilayah binaan operator. Menyajikan status lahan dan tombol aksi pemutakhiran data. 
++----------------------------------------------------------------------------------------------------+
+|  [LOGO] SIGAP-TRANS KALSEL - SISTEM INFORMASI GEOSPASIAL TRANSMIGRASI     [🔔 1] [👤 Op. Tapin v]   |
++------------------------------------+---------------------------------------------------------------+
+| SIDEBAR OPERATOR KABUPATEN         | DAFTAR UNIT PEMUKIMAN TRANSMIGRASI (UPT BINAAN TAPIN)         |
+|------------------------------------|---------------------------------------------------------------|
+| [👤] Ahmad Zaini, S.AP             | Cari UPT: [ Tambarang        ]   Status Lahan: [ Semua v ]    |
+|      Operator Disnakertrans Tapin  |                                        [ + AJUKAN PEMUTAKHIRAN] |
+|                                    |---------------------------------------------------------------|
+| MENU OPERATOR:                     | NO | NAMA UPT HISTORIS    | DESA DEFINITIF | POLA | STATUS LAHAN |
+| [ ] Dasbor Wilayah                 |----|----------------------|----------------|------|--------------|
+| [•] Data 9 UPT Binaan              | 1  | Tambarang dan Suato  | Suato Baru     | TPLK | [🟢 Clean]   |
+| [ ] Status Pengajuan       [ 1 ]   | 2  | Hatungun             | Bagak          | TPLK | [🟡 Pantau]  |
+| [ ] E-Arsip BAST Wilayah           | 3  | Sidodadi             | Sabah          | TPLK | [🟢 Clean]   |
+| [ ] Peta Kerja Wilayah             | 4  | Parandakan           | Parandakan     | TPLK | [🟢 Clean]   |
+|                                    | 5  | Miawa                | Miawa          | TPLK | [🔴 Sengketa]|
+| PANDUAN KERJA:                     | 6  | Ayunan papan         | Ayunan Papan   | TPLB | [🟢 Clean]   |
+| [?] Format Dokumen BAST            | 7  | Rawa Muning SP 1     | Papagan Makmur | TPLB | [🟡 Pantau]  |
+| [?] SOP Pengajuan Revisi           | 8  | Rawa Muning SP 2     | - (Pemekaran)  | TPLB | [🟢 Clean]   |
+|------------------------------------| 9  | Rawa Muning SP 3     | - (Pemekaran)  | TPLB | [🟢 Clean]   |
+| [⚙️ Akun Saya]    [🚪 Keluar]      |---------------------------------------------------------------|
+|                                    | [ Perbarui Data Terpilih ]                 [ Unduh Rekap (XLS)]|
++------------------------------------+---------------------------------------------------------------+
+Dokumen Desain Antarmuka (ASCII Wireframe) • SIGAP-TRANS KALSEL (124 UPT) Halaman 3 dari 11
+--- PAGE 4 ---
+2.3 Formulir Pemutakhiran Data & Unggah Scan BAST (Modal Multi-Tab)
+Formulir yang digunakan operator kabupaten untuk menginput revisi angka kependudukan, memperbarui catatan permasalahan tanah, serta
+melampirkan berkas BAST/SK penyerahan. 
++-----------------------------------------------------------------------------------------------+
+| FORMULIR PEMUTAKHIRAN DATA UPT & LEGALITAS ARSIP                                          [X] |
++-----------------------------------------------------------------------------------------------+
+| Identitas UPT: #005 - Miawa (Kabupaten Tapin)                                                 |
+|                                                                                               |
+| [TAB 1: DATA DEMOGRAFI & POLA]   [TAB 2: STATUS HUKUM & SENGKETA]   [TAB 3: E-ARSIP BAST]     |
+|-----------------------------------------------------------------------------------------------|
+| Nama UPT Asal           : [ Miawa                                                           ] |
+| Nama Desa Definitif Saat Ini: [ Desa Miawa                                                  ] |
+| Pola Usaha Budidaya     : [ TPLK (Tanaman Pangan Lahan Kering)                            v ] |
+| Tahun Penempatan Awal   : [ 1973/1974         ]                                               |
+| Jumlah KK / Jiwa Masuk  : [ 100               ] KK   |  [ 435             ] Jiwa              |
+| Tahun Serah Terima Pemda: [ 24-11-1997        ]                                               |
+| Jumlah KK / Jiwa Serah  : [ 84                ] KK   |  [ 252             ] Jiwa              |
+|-----------------------------------------------------------------------------------------------|
+| Status Legalitas Lahan  : ( ) Clean & Clear   ( ) Perlu Monitoring  (•) Sengketa / Prioritas  |
+| Catatan Permasalahan    : [ Tumpang tindih 12 Ha dengan batas kawasan hutan produksi        ] |
+|                           [ KPHP Model. Diperlukan mediasi pelepasan bersama BPN & BPKH.    ] |
+|-----------------------------------------------------------------------------------------------|
+| Unggah Dokumen BAST/SK  : [ Scan_BAST_Miawa_1997.pdf                     ] [ Pilih File... ]  |
+| Format PDF maks. 15MB. Dokumen harus memuat tanda tangan Bupati/Gubernur.                     |
+|-----------------------------------------------------------------------------------------------|
+|                                             [ Batal ]  [ Simpan Draf ]  [ KIRIM KE PROVINSI ] |
++-----------------------------------------------------------------------------------------------+
+Dokumen Desain Antarmuka (ASCII Wireframe) • SIGAP-TRANS KALSEL (124 UPT) Halaman 4 dari 11
+--- PAGE 5 ---
+2.4 Halaman Status Pengajuan & Catatan Revisi Draf (Operator Kabupaten)
+Memantau status draf yang diajukan ke provinsi, apakah sedang dalam antrean, disetujui, atau ditolak untuk revisi. 
++----------------------------------------------------------------------------------------------------+
+|  [LOGO] SIGAP-TRANS KALSEL - SISTEM INFORMASI GEOSPASIAL TRANSMIGRASI     [🔔 1] [👤 Op. Tapin v]   |
++------------------------------------+---------------------------------------------------------------+
+| SIDEBAR OPERATOR KABUPATEN         | STATUS PENGAJUAN PERUBAHAN DATA & ARSIP                       |
+|------------------------------------|---------------------------------------------------------------|
+| [👤] Ahmad Zaini, S.AP             | Filter Status: [ Semua Status v ]   Pencarian: [            ] |
+|      Operator Disnakertrans Tapin  |                                                               |
+|                                    | DAFTAR PENGAJUAN KE SUPER ADMIN PROVINSI:                     |
+| MENU OPERATOR:                     | NO | NAMA UPT       | JENIS PERUBAHAN  | TGL AJUKAN | STATUS DRAF   |
+| [ ] Dasbor Wilayah                 |----|----------------|------------------|------------|---------------|
+| [ ] Data 9 UPT Binaan              | 1  | UPT Miawa      | Update Sengketa  | 14/09/2026 | [🔴 REVISI]   |
+| [•] Status Pengajuan       [ 1 ]   |    | Catatan Prov: "Peta deliniasi KPHP belum terlampir"      |
+| [ ] E-Arsip BAST Wilayah           | 2  | Rawa Muning 1  | Lapor Normalisasi| 10/09/2026 | [🟡 PENDING]  |
+| [ ] Peta Kerja Wilayah             | 3  | Hatungun       | Upload Scan BAST | 01/09/2026 | [🟢 DISETUJUI]|
+|                                    | 4  | Suato Baru     | Peremajaan Karet | 15/08/2026 | [🟢 DISETUJUI]|
+| PANDUAN KERJA:                     |---------------------------------------------------------------|
+| [?] Format Dokumen BAST            | [ EDIT DRAF PERBAIKAN ]                 [ BATALKAN PENGAJUAN ]|
++------------------------------------+---------------------------------------------------------------+
+2.5 Halaman Repositori E-Arsip BAST Wilayah Kabupaten (Operator Kabupaten)
+Daftar arsip Berita Acara Serah Terima tingkat kabupaten yang telah diunggah atau masih dalam proses kelengkapan. 
++----------------------------------------------------------------------------------------------------+
+|  [LOGO] SIGAP-TRANS KALSEL - SISTEM INFORMASI GEOSPASIAL TRANSMIGRASI     [🔔 0] [👤 Op. Tapin v]   |
++------------------------------------+---------------------------------------------------------------+
+| SIDEBAR OPERATOR KABUPATEN         | REPOSITORI E-ARSIP BAST KABUPATEN TAPIN                       |
+|------------------------------------|---------------------------------------------------------------|
+| [👤] Ahmad Zaini, S.AP             | Status Unggah: 7 dari 9 UPT Telah Memiliki Scan BAST Lengkap  |
+|      Operator Disnakertrans Tapin  |                                        [ + UNGGAH BAST BARU ] |
+|                                    |---------------------------------------------------------------|
+| MENU OPERATOR:                     | NO | NAMA UPT       | NOMOR BAST / SK   | UKURAN FILE| STATUS ARSIP |
+| [ ] Dasbor Wilayah                 |----|----------------|-------------------|------------|--------------|
+| [ ] Data 9 UPT Binaan              | 1  | Tambarang/Suato| BAST/503/1977     | 8.4 MB     | [PDF Ada] [v]|
+| [ ] Status Pengajuan       [ 0 ]   | 2  | Hatungun       | BAST/503/1977     | 6.1 MB     | [PDF Ada] [v]|
+| [•] E-Arsip BAST Wilayah           | 3  | Sidodadi       | -                 | -          | [BELUM ADA]  |
+| [ ] Peta Kerja Wilayah             | 4  | Parandakan     | BAST/24-XI/1997   | 7.2 MB     | [PDF Ada] [v]|
+|                                    | 5  | Miawa          | BAST/24-XI/1997   | 8.1 MB     | [PDF Ada] [v]|
+| PANDUAN KERJA:                     | 6  | Ayunan Papan   | BAST/24-XI/1997   | 5.9 MB     | [PDF Ada] [v]|
+| [?] Format Dokumen BAST            | 7  | Rawa Muning 1  | -                 | -          | [BELUM ADA]  |
+| [?] SOP Pengajuan Revisi           |---------------------------------------------------------------|
+|------------------------------------| [ Unduh File Terpilih ]                 [ Hapus Berkas Draf ] |
++------------------------------------+---------------------------------------------------------------+
+2.6 Halaman Peta Kerja Wilayah & Validasi Titik Koordinat (Operator Kabupaten)
+Ruang kerja spasial interaktif bagi operator kabupaten untuk memvalidasi posisi titik koordinat centroid UPT, memeriksa kesesuaian batas
+desa definitif (overlay BIG), dan mendeteksi titik sengketa langsung di atas peta kerja sebelum diajukan ke provinsi. 
++----------------------------------------------------------------------------------------------------+
+|  [LOGO] SIGAP-TRANS KALSEL - SISTEM INFORMASI GEOSPASIAL TRANSMIGRASI     [🔔 0] [👤 Op. Tapin v]   |
++------------------------------------+---------------------------------------------------------------+
+| SIDEBAR OPERATOR KABUPATEN         | PETA KERJA & VALIDASI SPASIAL WILAYAH (KAB. TAPIN)            |
+|------------------------------------|---------------------------------------------------------------|
+| [👤] Ahmad Zaini, S.AP             | [Basemap: (•) Citra Satelit  ( ) Peta Jalan]   [Zoom: + | -]  |
+|      Operator Disnakertrans Tapin  | Layer: [x] Titik Centroid  [x] Batas Desa BIG  [x] Tutupan Kebun|
+|                                    |---------------------------------------------------------------|
+| MENU OPERATOR:                     | PETA WILAYAH OPERASIONAL KABUPATEN TAPIN (9 LOKASI UPT):      |
+| [ ] Dasbor Wilayah                 |                                                               |
+| [ ] Data 9 UPT Binaan              |                            ( HSU )                            |
+| [ ] Status Pengajuan       [ 0 ]   |                               •                               |
+| [ ] E-Arsip BAST Wilayah           |              • 🟡 Papagan Makmur (SP 1)                       |
+| [•] Peta Kerja Wilayah             |              • 🟢 Muning Tengah (SP 2)                        |
+|                                    |              • 🟢 Muning Hilir (SP 3)                         |
+| PANDUAN KERJA:                     |                                         • 🔴 Miawa (KPHP)     |
+| [?] Format Dokumen BAST            |                    • 🟢 Sabah (Sidodadi)                      |
+| [?] SOP Pengajuan Revisi           |      • 🟢 Ayunan Papan   • 🟢 Parandakan                      |
+|------------------------------------|                                         • 🟡 Bagak (Hatungun) |
+| ALAT BANTU SPASIAL:                |                    • 🟢 Suato Baru (Tambarang)                |
+| [ ] Ukur Jarak / Luas              |                                                               |
+| [ ] Pasang Pin Koordinat Baru      |---------------------------------------------------------------|
+| [ ] Unduh Shapefile (SHP)          | PANEL KONTROL TITIK TERPILIH: UPT MIAWA (#005)                |
+|------------------------------------| Koordinat Centroid : -2.941205, 115.234810  [ Koreksi Titik ] |
+| [⚙️ Akun Saya]    [🚪 Keluar]      | Status Spasial     : Poligon beririsan 12 Ha batas hutan KPHP |
+|                                    | [ EDIT ATRIBUT & BAST ]             [ VERIFIKASI PLOT KADASTRE]|
++------------------------------------+---------------------------------------------------------------+
+Dokumen Desain Antarmuka (ASCII Wireframe) • SIGAP-TRANS KALSEL (124 UPT) Halaman 5 dari 11
+--- PAGE 6 ---
+BAGIAN 3: ANTARMUKA SUPER ADMIN PROVINSI (DENGAN SIDEBAR TETAP)
+3.1 Dashboard Utama Super Admin Provinsi
+Pusat kendali operasional dan keamanan data Disnakertrans Provinsi Kalimantan Selatan dengan sidebar tetap di sisi kiri. 
++----------------------------------------------------------------------------------------------------+
+|  [LOGO] SIGAP-TRANS KALSEL - SISTEM INFORMASI GEOSPASIAL TRANSMIGRASI     [🔔 2] [👤 Super Admin v] |
++------------------------------------+---------------------------------------------------------------+
+| SIDEBAR NAVIGASI                   | DASHBOARD UTAMA SUPER ADMIN PROVINSI                          |
+|------------------------------------|---------------------------------------------------------------|
+| [👤] Anak Agung Made S., S.T       | RINGKASAN DATA TRANSMIGRASI KALSEL (1953 - 2025)              |
+|      Super Admin (Provinsi)        | +-------------------+ +-------------------+ +---------------+ |
+|      NIP: 197412272003121005       | | TOTAL UNIT UPT    | | PENEMPATAN AWAL   | | SERAH TERIMA  | |
+|                                    | | 124 Lokasi        | | 63.701 KK         | | 64.942 KK     | |
+| MENU KELOLA DATA:                  | | (9 Kabupaten)     | | 256.307 Jiwa      | | 262.871 Jiwa  | |
+| [•] Dashboard Utama                | +-------------------+ +-------------------+ +---------------+ |
+| [ ] Antrean Verifikasi     [ 2 ]   |                                                               |
+| [ ] Master Data 124 UPT            | INTEGRITAS & KESIAPAN DATA 9 KABUPATEN:                       |
+| [ ] Repositori E-Arsip BAST        | 1. Tapin       :  9 UPT [100%] | 6. Batola   : 20 UPT [100%]    |
+|                                    | 2. HSU         :  6 UPT [100%] | 7. Kotabaru : 39 UPT [100%]    |
+| KONTROL & KEAMANAN:                | 3. Balangan    :  3 UPT [100%] | 8. Tanbu    :  3 UPT [100%]    |
+| [ ] Manajemen Pengguna (RBAC)      | 4. Tabalong    : 11 UPT [100%] | 9. Banjar   : 11 UPT [100%]    |
+| [ ] Log Audit (Audit Trail)        | 5. Tanah Laut  : 23 UPT [100%] | Status Sinkronisasi: SELESAI   |
+| [ ] Cadangan Database (Backup)     |---------------------------------------------------------------|
+|                                    | AKTIVITAS PENGAJUAN TERBARU:                                  |
+| TAUTAN CEPAT:                      | • [09:15] Operator Tapin  : Update sengketa UPT Miawa [Draft]  |
+| [ ] Buka Portal WebGIS             | • [Kemarin] Operator Tala : Upload scan BAST Takisung [Draft] |
+|------------------------------------| [ LIHAT SEMUA ANTREAN VERIFIKASI (2 PENGAJUAN) -> ]           |
+| [⚙️ Pengaturan]   [🚪 Keluar]      |                                                               |
++------------------------------------+---------------------------------------------------------------+
+Dokumen Desain Antarmuka (ASCII Wireframe) • SIGAP-TRANS KALSEL (124 UPT) Halaman 6 dari 11
+--- PAGE 7 ---
+3.2 Halaman Antrean Verifikasi & Approval Data UPT (Diff Checker)
+Membandingkan data aktif saat ini dengan draf usulan kabupaten sebelum dipublikasikan ke peta utama. 
++----------------------------------------------------------------------------------------------------+
+|  [LOGO] SIGAP-TRANS KALSEL - SISTEM INFORMASI GEOSPASIAL TRANSMIGRASI     [🔔 2] [👤 Super Admin v] |
++------------------------------------+---------------------------------------------------------------+
+| SIDEBAR NAVIGASI                   | ANTREAN VERIFIKASI & PERSETUJUAN PERUBAHAN DATA               |
+|------------------------------------|---------------------------------------------------------------|
+| [👤] Anak Agung Made S., S.T       | DAFTAR PENGAJUAN MENUNGGU VERIFIKASI (2 ITEM)                 |
+|      Super Admin (Provinsi)        | +-----------------------------------------------------------+ |
+|                                    | | [!] #005 - UPT Miawa (Tapin)        | Pengirim: Op. Tapin | |
+| MENU KELOLA DATA:                  | | [!] #031 - UPT Takisung SP 1 (Tala) | Pengirim: Op. Tala  | |
+| [ ] Dashboard Utama                | +-----------------------------------------------------------+ |
+| [•] Antrean Verifikasi     [ 2 ]   |                                                               |
+| [ ] Master Data 124 UPT            | TELAAH PERUBAHAN: UPT MIAWA (#005)                            |
+| [ ] Repositori E-Arsip BAST        | Tanggal Pengajuan: 14 September 2026, 09:15 WITA              |
+|                                    |---------------------------------------------------------------|
+| KONTROL & KEAMANAN:                | PARAMETER          | DATA LAMA (AKTIF)   | DRAF BARU (KABUPATEN)   |
+| [ ] Manajemen Pengguna (RBAC)      |--------------------|---------------------|-------------------------|
+| [ ] Log Audit (Audit Trail)        | Status Lahan       | 🟡 Monitoring       | 🔴 Prioritas Sengketa   |
+| [ ] Cadangan Database (Backup)     | Catatan Sengketa   | Pemeliharaan jalan  | Tumpang tindih 12 Ha    |
+|                                    |                    | tanggul desa        | kawasan hutan KPHP      |
+| TAUTAN CEPAT:                      | Dokumen BAST       | [Arsip_1997.pdf]    | [Scan_BAST_Revisi.pdf]  |
+| [ ] Buka Portal WebGIS             | Jumlah KK Serah    | 84 KK (Tetap)       | 84 KK (Tetap)           |
+|------------------------------------| Catatan Verifikator: [ Draf valid. Segera jadwalkan mediasi ] |
+| [⚙️ Pengaturan]   [🚪 Keluar]      |                                                               |
+|                                    | [ ❌ TOLAK & REVISI ]             [ ✔️ SETUJUI & PUBLIKASIKAN ]|
++------------------------------------+---------------------------------------------------------------+
+3.3 Halaman Master Data 124 UPT Se-Kalimantan Selatan (Tingkat Provinsi)
+Pusat pengelolaan dan inventarisasi data induk seluruh 124 UPT di 9 kabupaten se-Kalimantan Selatan. Super Admin memiliki wewenang
+untuk melihat data lintas kabupaten, mengedit atribut secara langsung, menambahkan lokasi baru, serta mengekspor database master. 
++----------------------------------------------------------------------------------------------------+
+|  [LOGO] SIGAP-TRANS KALSEL - SISTEM INFORMASI GEOSPASIAL TRANSMIGRASI     [🔔 0] [👤 Super Admin v] |
++------------------------------------+---------------------------------------------------------------+
+| SIDEBAR NAVIGASI                   | MASTER DATA UNIT PEMUKIMAN TRANSMIGRASI (124 UPT KALSEL)      |
+|------------------------------------|---------------------------------------------------------------|
+| [👤] Anak Agung Made S., S.T       | Filter Kab: [ Semua 9 Kab v ]  Pola: [ Semua v ]  Status: [v] |
+|      Super Admin (Provinsi)        | Cari Data : [               ]              [ + TAMBAH UPT BARU ]|
+|                                    |---------------------------------------------------------------|
+| MENU KELOLA DATA:                  | NO | KABUPATEN | NAMA UPT HISTORIS    | DESA SAAT INI  | POLA | STATUS |
+| [ ] Dashboard Utama                |----|-----------|----------------------|----------------|------|--------|
+| [ ] Antrean Verifikasi     [ 0 ]   | 1  | Tapin     | Tambarang dan Suato  | Suato Baru     | TPLK | [🟢Acc]|
+| [•] Master Data 124 UPT            | 2  | Tapin     | Hatungun             | Bagak          | TPLK | [🟡Acc]|
+| [ ] Repositori E-Arsip BAST        | 5  | Tapin     | Miawa                | Miawa          | TPLK | [🔴Acc]|
+|                                    | 10 | HSU       | PIR Paringin I       | Mihu           | PIR  | [🟢Acc]|
+| KONTROL & KEAMANAN:                | 29 | Tala      | Takisung             | Benua Tengah   | TPLK | [🟢Acc]|
+| [ ] Manajemen Pengguna (RBAC)      | 52 | Batola    | Tamban               | Purwosari      | TPLB | [🟢Acc]|
+| [ ] Log Audit (Audit Trail)        | 72 | Kotabaru  | Berangas             | Berangas       | TPLK | [🟢Acc]|
+| [ ] Cadangan Database (Backup)     | 111| Tanbu     | Jombang              | Jombang        | TPLK | [🟢Acc]|
+|                                    | 114| Banjar    | Galam Rabah SP.1     | Simpang Lima   | TPLB | [🟢Acc]|
+| TAUTAN CEPAT:                      |---------------------------------------------------------------|
+| [ ] Buka Portal WebGIS             | TOTAL TERDATA: 124 UPT (Penempatan: 63.701 KK | Serah: 64.942 KK)|
+|------------------------------------| AKSI DATA TERPILIH:                                           |
+| [⚙️ Pengaturan]   [🚪 Keluar]      | [ Ubah Data ]   [ Hapus Data ]   [ Plot Peta ]   [ Ekspor XLS ]|
++------------------------------------+---------------------------------------------------------------+
+Dokumen Desain Antarmuka (ASCII Wireframe) • SIGAP-TRANS KALSEL (124 UPT) Halaman 7 dari 11
+--- PAGE 8 ---
+3.4 Halaman Repositori E-Arsip BAST & Dokumen SK (Tingkat Provinsi)
+Pusat repositori dan pemantauan kelengkapan berkas digital Berita Acara Serah Terima (BAST), SK Pelepasan Kawasan Hutan, dan SK
+Gubernur/Bupati untuk seluruh 124 UPT di 9 kabupaten. Memudahkan pembuktian audit hukum pertanahan dan redistribusi SHM bersama
+Kanwil BPN. 
++----------------------------------------------------------------------------------------------------+
+|  [LOGO] SIGAP-TRANS KALSEL - SISTEM INFORMASI GEOSPASIAL TRANSMIGRASI     [🔔 0] [👤 Super Admin v] |
++------------------------------------+---------------------------------------------------------------+
+| SIDEBAR NAVIGASI                   | REPOSITORI E-ARSIP BAST & DOKUMEN SK PROVINSI KALSEL          |
+|------------------------------------|---------------------------------------------------------------|
+| [👤] Anak Agung Made S., S.T       | PROGRES DIGITALISASI ARSIP SE-KALSEL:                         |
+|      Super Admin (Provinsi)        | • Berkas Lengkap : 108 dari 124 UPT (87%) [==============   ] |
+|                                    | • Belum Unggah   :  16 dari 124 UPT (13%)                     |
+| MENU KELOLA DATA:                  |---------------------------------------------------------------|
+| [ ] Dashboard Utama                | Filter Kab: [ Semua 9 Kab v ]  Jenis: [ Semua Dokumen v ]     |
+| [ ] Antrean Verifikasi     [ 0 ]   | Cari UPT  : [                 ]        [ + UNGGAH DOKUMEN SK ]|
+| [ ] Master Data 124 UPT            |---------------------------------------------------------------|
+| [•] Repositori E-Arsip BAST        | NO | KABUPATEN | LOKASI UPT       | JENIS DOKUMEN | UKURAN | AKSI |
+|                                    |----|-----------|------------------|---------------|--------|------|
+| KONTROL & KEAMANAN:                | 1  | Tapin     | Tambarang/Suato  | BAST Bupati   | 8.4 MB | [v]  |
+| [ ] Manajemen Pengguna (RBAC)      | 2  | Tapin     | Hatungun         | BAST Bupati   | 6.1 MB | [v]  |
+| [ ] Log Audit (Audit Trail)        | 5  | Tapin     | Miawa            | BAST & SK Hutan|11.2 MB | [v]  |
+| [ ] Cadangan Database (Backup)     | 29 | Tala      | Takisung         | BAST Bupati   | 7.5 MB | [v]  |
+|                                    | 52 | Batola    | Tamban           | BAST Menhut   | 9.0 MB | [v]  |
+| TAUTAN CEPAT:                      | 72 | Kotabaru  | Berangas         | BAST Bupati   | 6.8 MB | [v]  |
+| [ ] Buka Portal WebGIS             |---------------------------------------------------------------|
+|------------------------------------| Keterangan Aksi: [v] = Pratinjau PDF / Unduh Berkas / Verifikasi|
+| [⚙️ Pengaturan]   [🚪 Keluar]      | [ UNDUH SEMUA BERKAS TERPILIH (.ZIP) ]    [ REKAP STATUS DOK ]|
++------------------------------------+---------------------------------------------------------------+
+3.5 Halaman Manajemen Pengguna & Hak Akses / RBAC
+Pengelolaan akun bertingkat untuk Super Admin, Admin Disnakertrans 9 Kabupaten, Pimpinan Daerah, dan Mitra BPN. 
++----------------------------------------------------------------------------------------------------+
+|  [LOGO] SIGAP-TRANS KALSEL - SISTEM INFORMASI GEOSPASIAL TRANSMIGRASI     [🔔 0] [👤 Super Admin v] |
++------------------------------------+---------------------------------------------------------------+
+| SIDEBAR NAVIGASI                   | MANAJEMEN AKUN & HAK AKSES PENGGUNA (RBAC)                    |
+|------------------------------------|---------------------------------------------------------------|
+| [👤] Anak Agung Made S., S.T       | Filter Peran: [ Semua Peran v ]    Pencarian: [             ] |
+|      Super Admin (Provinsi)        | Wilayah     : [ Semua Wilayah v ]       [ + Tambah Akun Baru ] |
+|                                    |---------------------------------------------------------------|
+| MENU KELOLA DATA:                  | NO | NAMA PENGGUNA       | PERAN HAK AKSES   | WILAYAH TUGAS | STATUS|
+| [ ] Dashboard Utama                |----|---------------------|-------------------|---------------|-------|
+| [ ] Antrean Verifikasi     [ 0 ]   | 1  | Hj. Ina Yuliani     | Eksekutif (Kadis) | Prov. Kalsel  | Aktif |
+| [ ] Master Data 124 UPT            | 2  | Anak Agung Made S.  | Super Admin       | Prov. Kalsel  | Aktif |
+| [ ] Repositori E-Arsip BAST        | 3  | Ahmad Zaini, S.AP   | Operator Wilayah  | Kab. Tapin    | Aktif |
+|                                    | 4  | Muhammad Rifani     | Operator Wilayah  | Kab. Batola   | Aktif |
+| KONTROL & KEAMANAN:                | 5  | Hendra Pratama, S.T | Operator Wilayah  | Kab. Tala     | Aktif |
+| [•] Manajemen Pengguna (RBAC)      | 6  | Kanwil BPN Kalsel   | Mitra (Read-Only) | Lintas Kab.   | Aktif |
+| [ ] Log Audit (Audit Trail)        |---------------------------------------------------------------|
+| [ ] Cadangan Database (Backup)     | AKSI PADA PENGGUNA TERPILIH:                                  |
+|                                    | [ Ubah Hak Akses ]     [ Reset Sandi ]     [ Nonaktifkan ]    |
++------------------------------------+---------------------------------------------------------------+
+3.6 Halaman Log Audit Sistem (Audit Trail Forensik)
+Pencatatan riwayat aktivitas forensik untuk seluruh aksi perubahan data, persetujuan, dan pengunduhan berkas. 
++----------------------------------------------------------------------------------------------------+
+|  [LOGO] SIGAP-TRANS KALSEL - SISTEM INFORMASI GEOSPASIAL TRANSMIGRASI     [🔔 0] [👤 Super Admin v] |
++------------------------------------+---------------------------------------------------------------+
+| SIDEBAR NAVIGASI                   | REKAM JEJAK AKTIVITAS SISTEM (AUDIT TRAIL LOG)               |
+|------------------------------------|---------------------------------------------------------------|
+| [👤] Anak Agung Made S., S.T       | Rentang Tanggal: [ 01/09/2026 ] s.d. [ 14/09/2026 ]           |
+|      Super Admin (Provinsi)        | Filter Aksi    : [ Semua Aksi v ]           [ Unduh Log (CSV)]|
+|                                    |---------------------------------------------------------------|
+| MENU KELOLA DATA:                  | WAKTU (WITA)   | PENGGUNA        | PERAN    | AKSI SISTEM    | STATUS |
+| [ ] Dashboard Utama                |----------------|-----------------|----------|----------------|--------|
+| [ ] Antrean Verifikasi     [ 0 ]   | 14/09 10:50:12 | Anak Agung Made | SupAdmin | APPROVE_DRAFT  | Sukses |
+| [ ] Master Data 124 UPT            |                | Target: UPT Miawa (#005) - Status Lahan diubah |
+| [ ] Repositori E-Arsip BAST        | 14/09 09:15:30 | Ahmad Zaini     | Operator | SUBMIT_DRAFT   | Sukses |
+|                                    |                | Target: UPT Miawa (#005) - Pengajuan revisi    |
+| KONTROL & KEAMANAN:                | 14/09 08:30:11 | Hj. Ina Yuliani | Eksekutif| EXPORT_EXCEL   | Sukses |
+| [ ] Manajemen Pengguna (RBAC)      |                | Rekapitulasi Data 124 UPT Se-Kalsel           |
+| [•] Log Audit (Audit Trail)        | 13/09 23:00:00 | System Cron     | System   | AUTO_BACKUP_DB | Sukses |
+| [ ] Cadangan Database (Backup)     |                | File: backup_daily_20260913.sql.gz (412 MB)   |
+|                                    | 12/09 14:22:05 | Kanwil BPN      | Mitra    | DOWNLOAD_BAST  | Sukses |
+| TAUTAN CEPAT:                      |                | Target: BAST UPT Barambai Kolam Kiri (Batola) |
+| [ ] Buka Portal WebGIS             |---------------------------------------------------------------|
+|------------------------------------| Menampilkan log 1–5 dari 1.284 rekam jejak aktivitas          |
++------------------------------------+---------------------------------------------------------------+
+Dokumen Desain Antarmuka (ASCII Wireframe) • SIGAP-TRANS KALSEL (124 UPT) Halaman 8 dari 11
+--- PAGE 9 ---
+3.7 Halaman Cadangan Basis Data Spasial & Pemeliharaan Server
+Pencadangan rutin (backup) database PostgreSQL/PostGIS, pengujian integritas tabel spasial, dan monitoring kapasitas storage berkas e-
+arsip BAST. 
++----------------------------------------------------------------------------------------------------+
+|  [LOGO] SIGAP-TRANS KALSEL - SISTEM INFORMASI GEOSPASIAL TRANSMIGRASI     [🔔 0] [👤 Super Admin v] |
++------------------------------------+---------------------------------------------------------------+
+| SIDEBAR NAVIGASI                   | CADANGAN BASIS DATA & PEMELIHARAAN SISTEM                     |
+|------------------------------------|---------------------------------------------------------------|
+| [👤] Anak Agung Made S., S.T       | STATUS KESEHATAN ENGINE SPASIAL & SERVER:                     |
+|      Super Admin (Provinsi)        | • Basis Data Engine : PostgreSQL 16 + PostGIS 3.4 (Normal)    |
+|                                    | • Kapasitas Database: 412 MB / 50 GB Terpakai                 |
+| MENU KELOLA DATA:                  | • Storage E-Arsip   : 1,84 GB / 200 GB Terpakai (Berkas PDF)  |
+| [ ] Dashboard Utama                | • Jadwal Otomatis   : Setiap Hari pukul 23:00 WITA            |
+| [ ] Antrean Verifikasi     [ 0 ]   |---------------------------------------------------------------|
+| [ ] Master Data 124 UPT            | MANAJEMEN PENCADANGAN MANUAL:                                 |
+| [ ] Repositori E-Arsip BAST        | [ 💾 CADANGKAN SEKARANG (FULL BACKUP) ]  [ Uji Integritas DB ]|
+|                                    |---------------------------------------------------------------|
+| KONTROL & KEAMANAN:                | DAFTAR ARSIP PENCADANGAN TERAKHIR:                            |
+| [ ] Manajemen Pengguna (RBAC)      | NAMA BERKAS BACKUP            | UKURAN | TANGGAL BUAT  | AKSI   |
+| [ ] Log Audit (Audit Trail)        |-------------------------------|--------|---------------|--------|
+| [•] Cadangan Database (Backup)     | backup_daily_20260913.sql.gz  | 412 MB | 13/09 23:00   | [Unduh]|
+|                                    | backup_daily_20260912.sql.gz  | 410 MB | 12/09 23:00   | [Unduh]|
+| TAUTAN CEPAT:                      | backup_weekly_20260907.sql.gz | 408 MB | 07/09 23:00   | [Unduh]|
+| [ ] Buka Portal WebGIS             |---------------------------------------------------------------|
+|------------------------------------| [i] Catatan: Berkas cadangan terenkripsi SHA-256 dan aman    |
+| [⚙️ Pengaturan]   [🚪 Keluar]      |     disimpan di server cloud cadangan Diskominfo Kalsel.      |
++------------------------------------+---------------------------------------------------------------+
+BAGIAN 4: ANTARMUKA EKSEKUTIF & MITRA BPN (DENGAN SIDEBAR COLLAPSIBLE)
+4.1 Dashboard Ringkasan Eksekutif & KPI Provinsi
+Menampilkan metrik utama provinsi (63.701 KK penempatan & 64.942 KK penyerahan) serta persentase status sertifikasi tanah eks-
+transmigrasi. 
++----------------------------------------------------------------------------------------------------+
+|  [LOGO] SIGAP-TRANS KALSEL - RUANG KENDALI EKSEKUTIF & MITRA BPN               [👤 Kadis/BPN v]     |
++------------------------------------+---------------------------------------------------------------+
+| SIDEBAR EKSEKUTIF (COLLAPSIBLE)    | RINGKASAN EKSEKUTIF TRANSMIGRASI PROVINSI KALSEL              |
+| [ < Sembunyikan Sidebar ]          |                                                               |
+|------------------------------------| MONITORING AKUMULASI SELURUH 9 KABUPATEN (1953 - 2025):       |
+| [🏛️] Hj. Ina Yuliani, S.Sos         | +-------------------+ +-------------------+ +---------------+ |
+|      Kepala Bidang Transmigrasi    | | TOTAL TRANSMIGRASI| | PENEMPATAN AWAL   | | SERAH TERIMA  | |
+|      Disnakertrans Prov. Kalsel    | | 124 UPT           | | 63.701 KK         | | 64.942 KK     | |
+|                                    | | (Definitif)       | | 256.307 Jiwa      | | 262.871 Jiwa  | |
+| MENU MONITORING:                   | +-------------------+ +-------------------+ +---------------+ |
+| [•] Ringkasan KPI Provinsi         |                                                               |
+| [ ] Peta Tematik Sengketa          | STATUS PENYELESAIAN SERTIFIKASI & LEGALITAS LAHAN:            |
+| [ ] Verifikasi Alas Hak (BPN)      | 🟢 Clean & Clear (SHM 100% & Fasos Selesai)   : 98 UPT (79%)  |
+| [ ] Katalog Arsip BAST / SK        | 🟡 Perlu Pemeliharaan / Tata Air Rawa         : 19 UPT (15%)  |
+| [ ] Pusat Ekspor & Laporan         | 🔴 Sengketa Batas Hutan / Tambang (Prioritas) :  7 UPT  (6%)  |
+|                                    |---------------------------------------------------------------|
+| RINGKASAN PER KABUPATEN:           | AKSI CEPAT PIMPINAN:                                          |
+| • Tala    : 23 UPT | 11.797 KK Serah| [ Cetak Rekap Laporan Eksekutif ]  [ Buka Agenda Koordinasi ] |
+| • Batola  : 20 UPT | 10.323 KK Serah|                                                               |
+| • Kotabaru: 39 UPT | 28.200 KK Serah| Catatan: 7 UPT sengketa membutuhkan koordinasi lintas instansi |
+|------------------------------------|          antara Disnakertrans, Kanwil BPN, dan Dinas Kehutanan|
+| [🚪 Keluar]                        |                                                               |
++------------------------------------+---------------------------------------------------------------+
+Dokumen Desain Antarmuka (ASCII Wireframe) • SIGAP-TRANS KALSEL (124 UPT) Halaman 9 dari 11
+--- PAGE 10 ---
+4.2 Peta Tematik Sengketa Lahan & Prioritas Mediasi
+Peta interaktif terfokus pada pin merah (kawasan hutan dan tambang) untuk mendukung pengambilan keputusan mediasi pimpinan. 
++----------------------------------------------------------------------------------------------------+
+|  [LOGO] SIGAP-TRANS KALSEL - RUANG KENDALI EKSEKUTIF & MITRA BPN               [👤 Kadis/BPN v]     |
++------------------------------------+---------------------------------------------------------------+
+| SIDEBAR EKSEKUTIF (COLLAPSIBLE)    | PETA TEMATIK SENGKETA LAHAN & PRIORITAS MEDIASI               |
+| [ < Sembunyikan Sidebar ]          |                                                               |
+|------------------------------------| [Filter: Tampilkan 🔴 Sengketa Saja v]   [Basemap: Satelit v] |
+| [🏛️] Kanwil ATR/BPN Kalsel         |                                                               |
+|      Mitra Verifikasi Pertanahan   |                 ( TABALONG )                                  |
+|                                    |                                  ( BALANGAN )                 |
+| MENU MONITORING:                   |                 ( TAPIN )                                     |
+| [ ] Ringkasan KPI Provinsi         |                   • 🔴 UPT Miawa (Hutan KPHP)                 |
+| [•] Peta Tematik Sengketa          |                                                               |
+| [ ] Verifikasi Alas Hak (BPN)      |      ( BATOLA )                               ( KOTA BARU )   |
+| [ ] Katalog Arsip BAST / SK        |                                                 • 🔴 Sampanahan|
+| [ ] Pusat Ekspor & Laporan         |                 ( TALA )           ( TANBU )                  |
+|                                    |                                      • 🔴 Satui SP 1 (Tambang)|
+| FILTER KHUSUS MASALAH:             |---------------------------------------------------------------|
+| [x] Tumpang Tindih Hutan (4 UPT)   | DAFTAR PRIORITAS PENANGANAN MEDIASI:                          |
+| [x] Izin Usaha Tambang   (2 UPT)   | 1. UPT Miawa (Tapin)     : Tumpang tindih 12 Ha Hutan KPHP    |
+| [x] Batas Sempadan Air   (1 UPT)   | 2. UPT Satui SP 1 (Tanbu): Irisan konsesi tambang batubara    |
+|------------------------------------| 3. UPT Sampanahan (Kotabaru): Batas sempadan DAS sungai       |
+| [🚪 Keluar]                        |                                                               |
+|                                    | [ KLIK LOKASI PIN UNTUK LIHAT HISTORI & BERKAS BAST -> ]      |
++------------------------------------+---------------------------------------------------------------+
+Dokumen Desain Antarmuka (ASCII Wireframe) • SIGAP-TRANS KALSEL (124 UPT) Halaman 10 dari 11
+--- PAGE 11 ---
+4.3 Layanan Verifikasi Alas Hak & E-Arsip Legalitas (Khusus Kanwil BPN)
+Alat kerja verifikasi dokumen alas hak bagi petugas Kantor Wilayah BPN Kalsel dalam program percepatan sertifikasi tanah (SHM). 
++----------------------------------------------------------------------------------------------------+
+|  [LOGO] SIGAP-TRANS KALSEL - RUANG KENDALI EKSEKUTIF & MITRA BPN               [👤 Kanwil BPN v]   |
++------------------------------------+---------------------------------------------------------------+
+| SIDEBAR EKSEKUTIF (COLLAPSIBLE)    | VERIFIKASI ALAS HAK TANAH & PENERBITAN SHM                    |
+| [ < Sembunyikan Sidebar ]          |                                                               |
+|------------------------------------| Cari Lokasi UPT: [ Miawa                      ] [ Cari ]      |
+| [🏛️] Kanwil ATR/BPN Kalsel         |                                                               |
+|      Mitra Verifikasi Pertanahan   | HASIL PENELUSURAN ALAS HAK: UPT MIAWA (KABUPATEN TAPIN)       |
+|                                    |---------------------------------------------------------------|
+| MENU MONITORING:                   | • Nomor Registrasi : UPT-005 (Buku Induk Transmigrasi 1953)  |
+| [ ] Ringkasan KPI Provinsi         | • Desa Definitif   : Desa Miawa, Kec. Piani, Kab. Tapin       |
+| [ ] Peta Tematik Sengketa          | • Penempatan Awal  : 1973/1974 (100 KK / 435 Jiwa)            |
+| [•] Verifikasi Alas Hak (BPN)      | • Serah Terima     : 24 November 1997 (84 KK / 252 Jiwa)      |
+| [ ] Katalog Arsip BAST / SK        | • Status Hak Tanah : Sebagian Hak Milik Terbit (12 Ha Pending)|
+| [ ] Pusat Ekspor & Laporan         |---------------------------------------------------------------|
+|                                    | DOKUMEN ARSIP VALIDASI BPN:                                   |
+| ALAT VERIFIKASI BPN:               | 1. Scan BAST Penyerahan Bupati Tapin 1997   [ Unduh PDF (8MB)]|
+| [ ] Cek Tumpang Tindih HGU         | 2. SK Pelepasan Kawasan Hutan Menhut 1996   [ Unduh PDF (3MB)]|
+| [ ] Koordinat Batas Kadastral      | 3. Buku Registrasi Subjek Transmigran       [ Unduh XLS (1MB)]|
+|------------------------------------|---------------------------------------------------------------|
+| [🚪 Keluar]                        | [ REKOMENDASIKAN PENERBITAN SHM ]   [ TERBITKAN CATATAN BPN ] |
++------------------------------------+---------------------------------------------------------------+
+4.4 Modal Informasi Lengkap & Unduh E-Arsip BAST (Tampilan Eksekutif / BPN)
+Modal rincian komprehensif saat pimpinan mengeklik pin UPT. Dilengkapi tombol unduh dokumen PDF BAST dan SK penyerahan. 
++-----------------------------------------------------------------------------------------------+
+| KARTU DETAIL RIWAYAT & LEGALITAS ARSIP TRANSMIGRASI                                       [X] |
++-----------------------------------------------------------------------------------------------+
+| IDENTITAS FORMAL:                                                                             |
+| No. Urut Registrasi : #005 (Buku Induk Transmigrasi Kalsel 1953 - 2025)                       |
+| Wilayah Administrasi: Kabupaten Tapin | Kecamatan Piani | Desa Definitif: Desa Miawa          |
+| Nama Satuan Awal    : UPT Miawa (SP 1)                                                        |
+| Tipologi Pola Usaha : TPLK (Tanaman Pangan Lahan Kering / Perkebunan Karet)                   |
+|-----------------------------------------------------------------------------------------------|
+| PERKEMBANGAN PENDUDUK TRANSMIGRAN:                                                            |
+| - Penempatan Awal   : Tahun 1973/1974  --> 100 KK  | 435 Jiwa                                 |
+| - Serah Terima Pemda: 24 November 1997 -->  84 KK  | 252 Jiwa                                 |
+| - Pertumbuhan Alami : Mengalami pemekaran rukun tetangga dan pembentukan kebun mandiri        |
+|-----------------------------------------------------------------------------------------------|
+| STATUS AGRARIA & CATATAN PERMASALAHAN TERKINI:                                                |
+| Status: [🔴 PERLU PENANGANAN MEDIASI PRIORITAS]                                               |
+| Catatan: Berdasarkan verifikasi lapangan, terdapat 12 Ha lahan pekarangan warga yang belum   |
+| diserahkan SHM karena klaim tumpang tindih kawasan HPT. Surat usulan pelepasan kawasan telah  |
+| diajukan ke BPKH Wilayah V Banjarbaru.                                                        |
+|-----------------------------------------------------------------------------------------------|
+| DOKUMEN ARSIP RESMI TERSEDIA:                                                                 |
+| [PDF Icon] BAST_Penyerahan_UPT_Miawa_No_503_1997.pdf   (Ukuran: 8.4 MB)                       |
+| [PDF Icon] SK_Gubernur_Kalsel_Pelepasan_1997.pdf       (Ukuran: 3.1 MB)                       |
+|                                                                                               |
+| [ Tutup Jendela ]                                  [ UNDUH BERKAS BAST RESMI (PDF) ]          |
++-----------------------------------------------------------------------------------------------+
+4.5 Dialog Ekspor & Cetak Laporan Kedinasan (PDF & Excel)
+Dialog pengaturan sebelum mencetak peta berformat PDF resmi dinas lengkap dengan kop surat atau mengekspor tabel ke file Excel. 
++-----------------------------------------------------------------------+
+| CETAK LAPORAN & EKSPOR DATA REKAPITULASI TRANSMIGRASI             [X] |
++-----------------------------------------------------------------------+
+| Format Ekspor Laporan:                                                |
+|  (•) Dokumen Cetak Peta PDF Resmi (Standar Kedinasan Disnakertrans)   |
+|  ( ) Rekapitulasi Data Tabel Komprehensif (.xlsx / Microsoft Excel)   |
+|                                                                       |
+| Lingkup Wilayah:                                                      |
+|  [ Semua 9 Kabupaten (124 UPT Terdata)                              v ]|
+|                                                                       |
+| Kategori Status Lahan:                                                |
+|  [x] Sertifikasi Tuntas (Clean & Clear)                               |
+|  [x] Perlu Monitoring Infrastruktur / Tanggul                         |
+|  [x] Sengketa / Prioritas Mediasi Batas                               |
+|                                                                       |
+| Opsi Kelengkapan Dokumen PDF:                                         |
+|  [x] Sertakan Kop Surat Pemerintah Provinsi Kalimantan Selatan        |
+|  [x] Cantumkan Legenda Tematik & Rekap Total KK/Jiwa                  |
+|  [x] Sertakan Lembar Pengesahan Tanda Tangan Kepala Bidang & Kasi     |
+|                                                                       |
+|                                  [ Batal ]   [ MULAI CETAK / EKSPOR ] |
++-----------------------------------------------------------------------+
+Dokumen Desain Antarmuka (ASCII Wireframe) • SIGAP-TRANS KALSEL (124 UPT) Halaman 11 dari 11
