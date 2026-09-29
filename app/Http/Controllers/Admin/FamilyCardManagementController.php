@@ -4,10 +4,13 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
+use App\Models\UptChangeRequest;
 use App\Models\UptFamilyCard;
 use App\Models\UptLocation;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class FamilyCardManagementController extends Controller
@@ -59,6 +62,14 @@ class FamilyCardManagementController extends Controller
         $tpsCount = (int) (clone $allStageCards)->where('transmigrant_type', 'TPS')->count();
         $shmCount = (int) (clone $allStageCards)->where('land_certificate_status', 'ILIKE', '%SHM%')->count();
 
+        // Cek pengajuan validasi buku registri yang berstatus pending
+        $pendingValidation = UptChangeRequest::with('user')
+            ->where('upt_location_id', $uptId)
+            ->where('request_type', 'REGISTRY_SYNC')
+            ->where('status', 'pending')
+            ->latest()
+            ->first();
+
         return response()->json([
             'success' => true,
             'upt' => [
@@ -69,6 +80,12 @@ class FamilyCardManagementController extends Controller
                 'village' => $upt->current_village_name,
                 'current_aggregate_kk' => $stage === 'handover' ? $upt->handover_kk : $upt->placement_kk,
                 'current_aggregate_pop' => $stage === 'handover' ? $upt->handover_population : $upt->placement_population,
+                'is_verified' => (bool) $upt->is_verified,
+                'has_pending_validation' => $pendingValidation !== null,
+                'pending_validation_id' => $pendingValidation?->id,
+                'pending_operator_name' => $pendingValidation?->user?->name,
+                'pending_validation_date' => $pendingValidation?->created_at?->format('d/m/Y H:i'),
+                'can_direct_sync' => auth()->user()?->isSuperAdmin() ?? false,
             ],
             'stage' => $stage,
             'stats' => [
@@ -102,9 +119,23 @@ class FamilyCardManagementController extends Controller
             'housing_block' => ['nullable', 'string', 'max:50'],
             'land_certificate_status' => ['required', 'string', 'max:50'],
             'notes' => ['nullable', 'string', 'max:500'],
+            'document_file' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'], // Maksimal 10 MB
         ]);
 
         $validated['upt_location_id'] = $upt->id;
+
+        // Upload berkas jika ada
+        if ($request->hasFile('document_file')) {
+            $file = $request->file('document_file');
+            $originalName = $file->getClientOriginalName();
+            $safeName = 'kk_' . time() . '_' . preg_replace('/[^a-zA-Z0-9_\.-]/', '_', $originalName);
+            $path = $file->storeAs('documents/family_cards', $safeName, 'public');
+
+            $validated['document_path'] = $path;
+            $validated['document_name'] = $originalName;
+        }
+
+        unset($validated['document_file']);
 
         $card = UptFamilyCard::create($validated);
 
@@ -113,7 +144,7 @@ class FamilyCardManagementController extends Controller
             'upt_family_cards',
             $card->id,
             [
-                'message' => "Menambahkan data KK '{$card->head_of_family_name}' pada UPT-{$upt->upt_number} ({$upt->upt_name}) tahap {$card->stage}",
+                'message' => "Menambahkan data KK '{$card->head_of_family_name}' pada UPT-{$upt->upt_number} ({$upt->upt_name}) tahap {$card->stage}" . ($card->document_path ? ' beserta lampiran berkas' : ''),
                 'data' => $validated,
             ]
         );
@@ -143,7 +174,35 @@ class FamilyCardManagementController extends Controller
             'housing_block' => ['nullable', 'string', 'max:50'],
             'land_certificate_status' => ['required', 'string', 'max:50'],
             'notes' => ['nullable', 'string', 'max:500'],
+            'document_file' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'], // Maksimal 10 MB
+            'delete_document' => ['nullable', 'string', 'in:true,false,1,0'],
         ]);
+
+        // Hapus berkas jika diminta
+        if (filter_var($request->input('delete_document'), FILTER_VALIDATE_BOOLEAN) && $card->document_path) {
+            if (Storage::disk('public')->exists($card->document_path)) {
+                Storage::disk('public')->delete($card->document_path);
+            }
+            $validated['document_path'] = null;
+            $validated['document_name'] = null;
+        }
+
+        // Simpan berkas baru jika diunggah
+        if ($request->hasFile('document_file')) {
+            if ($card->document_path && Storage::disk('public')->exists($card->document_path)) {
+                Storage::disk('public')->delete($card->document_path);
+            }
+
+            $file = $request->file('document_file');
+            $originalName = $file->getClientOriginalName();
+            $safeName = 'kk_' . time() . '_' . preg_replace('/[^a-zA-Z0-9_\.-]/', '_', $originalName);
+            $path = $file->storeAs('documents/family_cards', $safeName, 'public');
+
+            $validated['document_path'] = $path;
+            $validated['document_name'] = $originalName;
+        }
+
+        unset($validated['document_file'], $validated['delete_document']);
 
         $oldData = $card->toArray();
         $card->update($validated);
@@ -167,6 +226,26 @@ class FamilyCardManagementController extends Controller
     }
 
     /**
+     * Unduh / buka berkas dokumen KK
+     */
+    public function downloadDocument(int $id): BinaryFileResponse|JsonResponse
+    {
+        $card = UptFamilyCard::findOrFail($id);
+
+        if (!$card->document_path || !Storage::disk('public')->exists($card->document_path)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Berkas digital KK tidak ditemukan di vault storage.',
+            ], 404);
+        }
+
+        return response()->download(
+            Storage::disk('public')->path($card->document_path),
+            $card->document_name ?? ('dokumen_kk_' . $card->id . '.pdf')
+        );
+    }
+
+    /**
      * Hapus data 1 KK
      */
     public function destroy(int $id): JsonResponse
@@ -175,6 +254,11 @@ class FamilyCardManagementController extends Controller
         $cardName = $card->head_of_family_name;
         $uptNumber = $card->uptLocation?->upt_number;
         $stage = $card->stage;
+
+        // Hapus fisik berkas jika ada
+        if ($card->document_path && Storage::disk('public')->exists($card->document_path)) {
+            Storage::disk('public')->delete($card->document_path);
+        }
 
         $card->delete();
 
@@ -190,56 +274,6 @@ class FamilyCardManagementController extends Controller
         return response()->json([
             'success' => true,
             'message' => "Data KK '{$cardName}' berhasil dihapus dari registri.",
-        ]);
-    }
-
-    /**
-     * Sinkronkan jumlah KK & Jiwa dari registri ke kolom rekapitulasi agregat UPT
-     */
-    public function syncAggregate(Request $request, int $uptId): JsonResponse
-    {
-        $upt = UptLocation::findOrFail($uptId);
-        $stage = $request->input('stage', 'placement');
-
-        $cards = UptFamilyCard::where('upt_location_id', $uptId)->where('stage', $stage);
-        $countKk = (int) (clone $cards)->count();
-        $countPop = (int) (clone $cards)->sum('family_members_count');
-
-        if ($stage === 'handover') {
-            $upt->handover_kk = $countKk;
-            $upt->handover_population = $countPop;
-            $upt->save();
-        } else {
-            $upt->placement_kk = $countKk;
-            $upt->placement_population = $countPop;
-            $upt->save();
-        }
-
-        AuditLog::log(
-            'SYNC_FAMILY_CARDS_AGGREGATE',
-            'upt_locations',
-            $upt->id,
-            [
-                'message' => "Sinkronisasi otomatis registri nominal ke rekap UPT-{$upt->upt_number} ({$stage}): {$countKk} KK, {$countPop} Jiwa",
-                'stage' => $stage,
-                'count_kk' => $countKk,
-                'count_population' => $countPop,
-            ]
-        );
-
-        return response()->json([
-            'success' => true,
-            'message' => "Rekap UPT-{$upt->upt_number} ({$upt->upt_name}) berhasil disinkronkan: {$countKk} KK dan {$countPop} Jiwa!",
-            'data' => [
-                'upt_id' => $upt->id,
-                'stage' => $stage,
-                'count_kk' => $countKk,
-                'count_pop' => $countPop,
-                'total_all_placement_kk' => (int) UptLocation::sum('placement_kk'),
-                'total_all_placement_pop' => (int) UptLocation::sum('placement_population'),
-                'total_all_handover_kk' => (int) UptLocation::sum('handover_kk'),
-                'total_all_handover_pop' => (int) UptLocation::sum('handover_population'),
-            ],
         ]);
     }
 
@@ -472,6 +506,157 @@ class FamilyCardManagementController extends Controller
             'message' => "Berhasil mengimpor {$importedCount} data KK transmigran!" . ($skippedCount > 0 ? " ({$skippedCount} baris dilewati karena nama kosong)." : ""),
             'imported_count' => $importedCount,
             'skipped_count' => $skippedCount,
+        ]);
+    }
+
+    /**
+     * Operator Wilayah mengajukan pengesahan Buku Registri Warga UPT ke Provinsi
+     */
+    public function submitValidation(Request $request, int $uptId): JsonResponse
+    {
+        $user = auth()->user();
+        $upt = UptLocation::with('regency')->findOrFail($uptId);
+        $stage = $request->input('stage', 'placement');
+
+        // Hitung statistik aktual dari registri KK
+        $stageCards = UptFamilyCard::where('upt_location_id', $uptId)->where('stage', $stage);
+        $totalKk = (int) (clone $stageCards)->count();
+        $totalJiwa = (int) (clone $stageCards)->sum('family_members_count');
+        $tpaCount = (int) (clone $stageCards)->where('transmigrant_type', 'TPA')->count();
+        $tpsCount = (int) (clone $stageCards)->where('transmigrant_type', 'TPS')->count();
+        $shmCount = (int) (clone $stageCards)->where('land_certificate_status', 'ILIKE', '%SHM%')->count();
+
+        if ($totalKk === 0) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Buku registri masih kosong (0 KK). Tambahkan minimal 1 data KK sebelum mengajukan pengesahan ke Provinsi.'
+            ], 422);
+        }
+
+        // Cek apakah sudah ada antrean pending
+        $existing = UptChangeRequest::where('upt_location_id', $uptId)
+            ->where('request_type', 'REGISTRY_SYNC')
+            ->where('status', 'pending')
+            ->first();
+
+        if ($existing) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Pengajuan pengesahan buku registri UPT ini sudah terdaftar di antrean verifikasi Provinsi (Draf #' . $existing->id . ').'
+            ], 422);
+        }
+
+        $currentMasterKk = $stage === 'handover' ? $upt->handover_kk : $upt->placement_kk;
+        $currentMasterPop = $stage === 'handover' ? $upt->handover_population : $upt->placement_population;
+        $deltaKk = $totalKk - $currentMasterKk;
+
+        $note = $request->input('submission_note');
+        if (empty($note)) {
+            $stageLabel = $stage === 'handover' ? 'Serah Terima Pemda' : 'Penempatan Awal';
+            $sign = $deltaKk >= 0 ? '+' : '';
+            $note = "Pengajuan pengesahan buku registri warga ({$stageLabel}) dan sinkronisasi angka master UPT {$upt->upt_name}. Terdata {$totalKk} KK ({$sign}{$deltaKk} KK dari angka master saat ini).";
+        }
+
+        $proposedPayload = [
+            'submission_note' => $note,
+            'stage' => $stage,
+            'registry_summary' => [
+                'stage' => $stage,
+                'stage_label' => $stage === 'handover' ? 'Serah Terima Pemda' : 'Penempatan Awal',
+                'current_master_kk' => $currentMasterKk,
+                'current_master_population' => $currentMasterPop,
+                'recorded_kk' => $totalKk,
+                'recorded_population' => $totalJiwa,
+                'delta_kk' => $deltaKk,
+                'tpa_count' => $tpaCount,
+                'tps_count' => $tpsCount,
+                'shm_count' => $shmCount,
+            ],
+            ($stage === 'handover' ? 'handover_kk' : 'placement_kk') => $totalKk,
+            ($stage === 'handover' ? 'handover_population' : 'placement_population') => $totalJiwa,
+        ];
+
+        $changeRequest = UptChangeRequest::create([
+            'upt_location_id' => $upt->id,
+            'user_id' => $user->id,
+            'request_type' => 'REGISTRY_SYNC',
+            'proposed_payload' => $proposedPayload,
+            'status' => 'pending',
+        ]);
+
+        AuditLog::log('SUBMIT_REGISTRY_VALIDATION', 'upt_change_requests', $changeRequest->id, [
+            'upt_name' => $upt->upt_name,
+            'stage' => $stage,
+            'recorded_kk' => $totalKk,
+            'delta_kk' => $deltaKk,
+            'operator' => $user->name,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => "Buku Registri Warga UPT {$upt->upt_name} ({$totalKk} KK) berhasil diajukan ke Antrean Verifikasi Provinsi!",
+            'change_request_id' => $changeRequest->id,
+        ]);
+    }
+
+    /**
+     * Sinkronisasi angka agregat master UPT dari jumlah KK nominal registri
+     * - Jika Super Admin: Sinkronkan langsung ke basis data master
+     * - Jika Operator Wilayah: Otomatis dialihkan ke submitValidation (alur Solusi Tengah)
+     */
+    public function syncAggregate(Request $request, int $uptId): JsonResponse
+    {
+        $user = auth()->user();
+
+        // Jika operator, gunakan alur pengesahan draf usulan
+        if (! $user->isSuperAdmin()) {
+            return $this->submitValidation($request, $uptId);
+        }
+
+        $upt = UptLocation::findOrFail($uptId);
+        $stage = $request->input('stage', 'placement');
+
+        $stageCards = UptFamilyCard::where('upt_location_id', $uptId)->where('stage', $stage);
+        $countKk = (int) (clone $stageCards)->count();
+        $countPop = (int) (clone $stageCards)->sum('family_members_count');
+
+        if ($countKk === 0) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Tidak dapat menyinkronkan: Data registri warga masih kosong (0 KK).'
+            ], 422);
+        }
+
+        if ($stage === 'handover') {
+            $upt->handover_kk = $countKk;
+            $upt->handover_population = $countPop;
+        } else {
+            $upt->placement_kk = $countKk;
+            $upt->placement_population = $countPop;
+        }
+        $upt->is_verified = true;
+        $upt->save();
+
+        AuditLog::log('SYNC_AGGREGATE_DIRECT', 'upt_locations', $upt->id, [
+            'upt_name' => $upt->upt_name,
+            'stage' => $stage,
+            'new_kk' => $countKk,
+            'new_pop' => $countPop,
+            'admin' => $user->name,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => "Angka rekapitulasi master UPT {$upt->upt_name} berhasil disinkronkan langsung!",
+            'data' => [
+                'upt_id' => $upt->id,
+                'count_kk' => $countKk,
+                'count_pop' => $countPop,
+                'total_all_placement_kk' => UptLocation::sum('placement_kk'),
+                'total_all_placement_pop' => UptLocation::sum('placement_population'),
+                'total_all_handover_kk' => UptLocation::sum('handover_kk'),
+                'total_all_handover_pop' => UptLocation::sum('handover_population'),
+            ]
         ]);
     }
 }

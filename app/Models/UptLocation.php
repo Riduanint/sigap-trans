@@ -25,6 +25,7 @@ class UptLocation extends Model
         'handover_population',
         'issue_status',
         'issue_note',
+        'notes_issue',
         'coordinate_point',
         'polygon_area',
         'is_verified',
@@ -118,5 +119,15 @@ class UptLocation extends Model
                 'shm_status' => $this->shm_status,
             ],
         ];
+    }
+
+    public function getNotesIssueAttribute(): ?string
+    {
+        return $this->issue_note;
+    }
+
+    public function setNotesIssueAttribute(?string $value): void
+    {
+        $this->attributes['issue_note'] = $value;
     }
 }

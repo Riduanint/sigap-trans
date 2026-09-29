@@ -58,7 +58,7 @@ class UserController extends Controller
             'bpn' => User::where('role', 'mitra_bpn')->count(),
         ];
 
-        return view('admin.users.users', compact('users', 'regencies', 'counts'));
+        return view('admin.manajemen_pengguna.manajemen_pengguna', compact('users', 'regencies', 'counts'));
     }
 
     /**
@@ -67,7 +67,7 @@ class UserController extends Controller
     public function create(): View
     {
         $regencies = Regency::orderBy('id')->get();
-        return view('admin.users.create', compact('regencies'));
+        return view('admin.manajemen_pengguna.create', compact('regencies'));
     }
 
     /**
@@ -122,7 +122,7 @@ class UserController extends Controller
         $user = User::with('regency')->findOrFail($id);
         $regencies = Regency::orderBy('id')->get();
 
-        return view('admin.users.edit', compact('user', 'regencies'));
+        return view('admin.manajemen_pengguna.edit', compact('user', 'regencies'));
     }
 
     /**

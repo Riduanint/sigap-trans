@@ -70,7 +70,7 @@ class BackupController extends Controller
         // Urutkan backup terbaru di paling atas
         usort($backups, fn($a, $b) => $b['timestamp'] <=> $a['timestamp']);
 
-        return view('admin.backup.backup', compact(
+        return view('admin.cadangan_database.cadangan_database', compact(
             'pgVersion',
             'postgisVersion',
             'dbSize',

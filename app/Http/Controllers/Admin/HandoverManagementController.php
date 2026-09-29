@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\Regency;
 use App\Models\UptLocation;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -66,12 +67,12 @@ class HandoverManagementController extends Controller
         }
 
         // Pagination Per Page Dinamis
-        $perPage = $request->input('per_page', 15);
+        $perPage = $request->input('per_page', 10);
         if ($perPage === 'all' || (int)$perPage >= 124) {
             $perPage = 124;
         } else {
             $perPage = (int)$perPage;
-            if ($perPage < 1) $perPage = 15;
+            if ($perPage < 1) $perPage = 10;
         }
 
         $uptLocations = $query->orderBy('upt_number')->paginate($perPage)->withQueryString();
@@ -99,7 +100,7 @@ class HandoverManagementController extends Controller
         $regencies = Regency::withCount('uptLocations')->orderBy('id')->get();
         $years = UptLocation::whereNotNull('handover_year')->where('handover_year', '!=', '')->select('handover_year')->distinct()->orderBy('handover_year')->pluck('handover_year');
 
-        return view('admin.handovers.handovers', compact('uptLocations', 'regencies', 'years', 'stats'));
+        return view('admin.serah_terima_pemda.serah_terima_pemda', compact('uptLocations', 'regencies', 'years', 'stats'));
     }
 
     /**
@@ -221,5 +222,84 @@ class HandoverManagementController extends Controller
 
             fclose($handle);
         }, 200, $headers);
+    }
+
+    /**
+     * Cetak Laporan Rekapitulasi Serah Terima Pemda format PDF A4 Landscape
+     */
+    public function exportPdf(Request $request)
+    {
+        $query = UptLocation::with(['regency', 'documents' => function ($q) {
+            $q->where('document_type', 'BAST')->latest();
+        }])->orderBy('upt_number');
+
+        // Pencarian Nama UPT, Desa Definitif, atau Nomor UPT
+        if ($search = trim($request->input('search', ''))) {
+            $uptNumber = null;
+            if (preg_match('/\b(?:upt[-\s]*)?(\d+)\b/i', $search, $matches)) {
+                $uptNumber = (int) $matches[1];
+            }
+
+            $query->where(function ($q) use ($search, $uptNumber) {
+                $q->where('upt_name', 'ILIKE', "%{$search}%")
+                  ->orWhere('current_village_name', 'ILIKE', "%{$search}%")
+                  ->orWhereHas('regency', function ($rq) use ($search) {
+                      $rq->where('name', 'ILIKE', "%{$search}%");
+                  });
+                if ($uptNumber !== null) {
+                    $q->orWhere('upt_number', $uptNumber);
+                }
+            });
+        }
+
+        // Filter Kabupaten
+        $targetRegency = null;
+        if ($regencyId = $request->input('regency_id')) {
+            if ($regencyId !== 'all') {
+                $query->where('regency_id', (int) $regencyId);
+                $targetRegency = Regency::find($regencyId);
+            } else {
+                $query->whereHas('regency', fn($q) => $q->where('is_visible', true));
+            }
+        } else {
+            $query->whereHas('regency', fn($q) => $q->where('is_visible', true));
+        }
+
+        // Filter Status Serah Terima
+        if ($handoverStatus = $request->input('handover_status')) {
+            if ($handoverStatus === 'handed_over') {
+                $query->where('handover_kk', '>', 0);
+            } elseif ($handoverStatus === 'pending') {
+                $query->where('handover_kk', '<=', 0);
+            }
+        }
+
+        $locations = $query->get();
+
+        if ($targetRegency) {
+            $filterRegencyName = "Kabupaten {$targetRegency->name}";
+        } else {
+            $visibleRegencies = Regency::where('is_visible', true)->orderBy('id')->get();
+            if ($visibleRegencies->count() === 9) {
+                $filterRegencyName = 'Seluruh Wilayah (9 Kabupaten Binaan)';
+            } else {
+                $filterRegencyName = "{$visibleRegencies->count()} Kabupaten Terpublikasi (" . $visibleRegencies->pluck('name')->implode(', ') . ')';
+            }
+        }
+        $signCity = 'Banjarbaru';
+        $signDate = date('d F Y');
+        $orientation = 'landscape';
+
+        $pdf = Pdf::loadView('admin.reports.pdf.handovers', compact(
+            'locations',
+            'filterRegencyName',
+            'signCity',
+            'signDate',
+            'orientation'
+        ))->setPaper('a4', 'landscape');
+
+        $safeName = $targetRegency ? preg_replace('/[^A-Za-z0-9]/', '_', $targetRegency->name) : 'Kalsel';
+        $filename = "Laporan_Serah_Terima_Pemda_UPT_{$safeName}_" . date('Ymd_His') . '.pdf';
+        return $pdf->stream($filename);
     }
 }

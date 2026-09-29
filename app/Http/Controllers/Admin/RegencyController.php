@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\Regency;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -32,7 +33,7 @@ class RegencyController extends Controller
             'visible_upts' => $regencies->where('is_visible', true)->sum('upt_locations_count'),
         ];
 
-        return view('admin.regencies.regencies', compact('regencies', 'stats'));
+        return view('admin.wilayah_peta_webgis.wilayah_peta_webgis', compact('regencies', 'stats'));
     }
 
     /**
@@ -62,8 +63,8 @@ class RegencyController extends Controller
         );
 
         $statusMsg = $newState
-            ? "Wilayah Kabupaten {$regency->name} ({$regency->code_roman}) berhasil diaktifkan di Peta WebGIS."
-            : "Wilayah Kabupaten {$regency->name} ({$regency->code_roman}) berhasil disembunyikan dari Peta WebGIS.";
+            ? "Wilayah Kabupaten {$regency->name} berhasil diaktifkan di Peta WebGIS."
+            : "Wilayah Kabupaten {$regency->name} berhasil disembunyikan dari Peta WebGIS.";
 
         if ($request->wantsJson() || $request->ajax()) {
             return response()->json([
@@ -163,5 +164,43 @@ class RegencyController extends Controller
         }
 
         return back()->with('success', $msg);
+    }
+
+    /**
+     * Ekspor status publikasi spasial wilayah WebGIS ke PDF resmi A4 Portrait
+     */
+    public function exportPdf(Request $request)
+    {
+        $regencies = Regency::withCount('uptLocations')
+            ->with(['uptLocations' => function ($q) {
+                $q->select('id', 'regency_id', 'placement_kk', 'placement_population', 'handover_kk', 'handover_population', 'issue_status');
+            }])
+            ->orderBy('id')
+            ->get();
+
+        $stats = [
+            'total_regencies' => $regencies->count(),
+            'visible_regencies' => $regencies->where('is_visible', true)->count(),
+            'hidden_regencies' => $regencies->where('is_visible', false)->count(),
+            'total_upts' => $regencies->sum('upt_locations_count'),
+            'visible_upts' => $regencies->where('is_visible', true)->sum('upt_locations_count'),
+            'visible_placement_kk' => $regencies->where('is_visible', true)->sum(fn($r) => $r->uptLocations->sum('placement_kk')),
+            'visible_handover_kk' => $regencies->where('is_visible', true)->sum(fn($r) => $r->uptLocations->sum('handover_kk')),
+        ];
+
+        $signCity = 'Banjarbaru';
+        $signDate = date('d F Y');
+        $orientation = 'portrait';
+
+        $pdf = Pdf::loadView('admin.reports.pdf.regencies', compact(
+            'regencies',
+            'stats',
+            'signCity',
+            'signDate',
+            'orientation'
+        ))->setPaper('a4', 'portrait');
+
+        $filename = 'Laporan_Status_Publikasi_Wilayah_WebGIS_' . date('Ymd_His') . '.pdf';
+        return $pdf->stream($filename);
     }
 }

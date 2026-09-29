@@ -30,21 +30,30 @@ class OperatorChangeRequestController extends Controller
             $query->where('request_type', $request->request_type);
         }
 
-        $requests = $query->latest()->paginate(10)->withQueryString();
+        if ($request->filled('regency_id') && $request->regency_id !== 'all') {
+            $query->whereHas('uptLocation', function ($q) use ($request) {
+                $q->where('regency_id', (int) $request->regency_id);
+            });
+        }
 
-        return view('operator.requests.index', compact('requests'));
+        $requests = $query->latest()->paginate(10)->withQueryString();
+        $regencies = \App\Models\Regency::orderBy('name')->get();
+
+        return view('operator.draf_usulan.draf_usulan', compact('requests', 'regencies'));
     }
 
     /**
      * Tampilkan formulir pengajuan draf usulan baru
+     * Operator dapat mengajukan usulan untuk seluruh 124 UPT di Kalimantan Selatan
      */
     public function create(Request $request): View
     {
         $user = auth()->user();
-        $regencyId = $user->regency_id ?? 1;
+        $regencies = \App\Models\Regency::orderBy('name')->get();
 
-        // Hanya UPT dalam kabupaten operator bersangkutan
-        $uptLocations = UptLocation::where('regency_id', $regencyId)
+        // Seluruh 124 UPT di bawah 9 kabupaten
+        $uptLocations = UptLocation::with('regency')
+            ->orderBy('regency_id')
             ->orderBy('upt_number')
             ->get();
 
@@ -53,16 +62,16 @@ class OperatorChangeRequestController extends Controller
             $selectedUpt = $uptLocations->firstWhere('id', (int) $request->upt_id);
         }
 
-        return view('operator.requests.create', compact('uptLocations', 'selectedUpt'));
+        return view('operator.draf_usulan.create', compact('uptLocations', 'selectedUpt', 'regencies'));
     }
 
     /**
      * Simpan draf usulan pemutakhiran data ke basis data
+     * Wewenang operator mencakup seluruh 124 UPT lintas kabupaten Kalsel
      */
     public function store(Request $request): RedirectResponse
     {
         $user = auth()->user();
-        $regencyId = $user->regency_id ?? 1;
 
         $validated = $request->validate([
             'upt_location_id' => 'required|exists:upt_locations,id',
@@ -88,11 +97,8 @@ class OperatorChangeRequestController extends Controller
             'document_name' => 'nullable|string|max:255',
         ]);
 
-        // Verifikasi UPT benar berada di bawah wewenang kabupaten operator
+        // Muat data UPT yang diajukan (berlaku lintas semua kabupaten)
         $upt = UptLocation::findOrFail($validated['upt_location_id']);
-        if ($upt->regency_id != $regencyId && ! $user->isSuperAdmin()) {
-            abort(403, 'Anda hanya berwenang mengajukan perubahan untuk UPT di wilayah kabupaten Anda.');
-        }
 
         // Susun payload usulan (perubahan yang diajukan)
         $proposedPayload = [
@@ -158,6 +164,6 @@ class OperatorChangeRequestController extends Controller
             abort(403, 'Anda tidak memiliki akses melihat usulan ini.');
         }
 
-        return view('operator.requests.show', compact('changeRequest'));
+        return view('operator.draf_usulan.show', compact('changeRequest'));
     }
 }

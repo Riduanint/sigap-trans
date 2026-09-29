@@ -52,7 +52,7 @@ class VerificationController extends Controller
             'rejected' => UptChangeRequest::where('status', 'rejected')->count(),
         ];
 
-        return view('admin.verification.verification', compact('requests', 'regencies', 'counts'));
+        return view('admin.verifikasi_draf_usulan.verifikasi_draf_usulan', compact('requests', 'regencies', 'counts'));
     }
 
     /**
@@ -115,7 +115,27 @@ class VerificationController extends Controller
             ],
         ];
 
-        return view('admin.verification.show', compact('changeRequest', 'upt', 'payload', 'comparisonFields'));
+        $registrySummary = null;
+        $registrySampleCards = [];
+        $registryTotalCards = 0;
+
+        if ($changeRequest->request_type === 'REGISTRY_SYNC') {
+            $registrySummary = $payload['registry_summary'] ?? null;
+            $stage = $payload['stage'] ?? 'placement';
+            $cardsQuery = \App\Models\UptFamilyCard::where('upt_location_id', $upt->id)->where('stage', $stage);
+            $registryTotalCards = $cardsQuery->count();
+            $registrySampleCards = $cardsQuery->orderBy('housing_block')->orderBy('id')->take(8)->get();
+        }
+
+        return view('admin.verifikasi_draf_usulan.show', compact(
+            'changeRequest', 
+            'upt', 
+            'payload', 
+            'comparisonFields',
+            'registrySummary',
+            'registrySampleCards',
+            'registryTotalCards'
+        ));
     }
 
     /**
@@ -153,6 +173,10 @@ class VerificationController extends Controller
                 if (array_key_exists($field, $payload)) {
                     $updateData[$field] = $payload[$field];
                 }
+            }
+
+            if ($changeRequest->request_type === 'REGISTRY_SYNC') {
+                $updateData['is_verified'] = true;
             }
 
             if (! empty($updateData)) {

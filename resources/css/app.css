@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,12 +6,667 @@
 
 @layer base {
     body {
-        font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        font-family: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
         font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        background-color: #EEE9DF;
+        color: #1B2632;
     }
 
     .tabular-nums {
         font-variant-numeric: tabular-nums;
+    }
+}
+
+/* -------------------------------------------------------------------------- */
+/* WebGIS workspace: restrained cartographic UI, scoped to the public map.   */
+/* -------------------------------------------------------------------------- */
+.webgis-shell {
+    --gis-ink: #17252b;
+    --gis-ink-soft: #41545a;
+    --gis-paper: #f5f4ef;
+    --gis-panel: rgba(250, 250, 247, 0.96);
+    --gis-line: #d5d9d2;
+    --gis-teal: #0f766e;
+    --gis-teal-dark: #115e59;
+    --gis-amber: #b7791f;
+    --gis-shadow: 0 14px 32px rgba(23, 37, 43, 0.13), 0 2px 7px rgba(23, 37, 43, 0.08);
+    font-family: 'DM Sans', system-ui, sans-serif;
+    background: var(--gis-paper) !important;
+    color: var(--gis-ink) !important;
+}
+
+.webgis-shell h1,
+.webgis-shell h2,
+.webgis-shell p,
+.webgis-shell label,
+.webgis-shell button,
+.webgis-shell input,
+.webgis-shell select {
+    letter-spacing: normal;
+}
+
+.webgis-shell header {
+    height: 72px;
+    padding-inline: clamp(1rem, 2.5vw, 2.5rem);
+    background: var(--gis-ink) !important;
+    border-bottom: 3px solid var(--gis-amber) !important;
+    box-shadow: 0 5px 18px rgba(23, 37, 43, 0.18) !important;
+}
+
+.webgis-shell header .rounded-xl {
+    border-radius: 8px;
+}
+
+.webgis-shell header h1 {
+    font-size: 1.05rem;
+    letter-spacing: -0.035em;
+}
+
+.webgis-shell header p {
+    color: rgba(245, 244, 239, 0.62) !important;
+    letter-spacing: 0.01em;
+}
+
+.webgis-shell header .font-mono,
+.webgis-shell #filter-count-badge,
+.webgis-shell #stat-clean,
+.webgis-shell #stat-warning,
+.webgis-shell #stat-critical {
+    font-family: 'IBM Plex Mono', monospace;
+    font-variant-numeric: tabular-nums;
+}
+
+.webgis-shell #sigap-map {
+    background: #dfe5df !important;
+}
+
+.webgis-shell .bg-white\/95,
+.webgis-shell .bg-white\/90 {
+    background: var(--gis-panel) !important;
+    border-color: var(--gis-line) !important;
+    border-radius: 10px !important;
+    box-shadow: var(--gis-shadow) !important;
+    backdrop-filter: blur(10px);
+}
+
+.webgis-shell [class*="rounded-2xl"] {
+    border-radius: 10px !important;
+}
+
+.webgis-shell [class*="rounded-xl"] {
+    border-radius: 6px !important;
+}
+
+.webgis-shell .absolute.top-4.left-4 {
+    top: 22px;
+    left: 22px;
+    width: 21rem;
+}
+
+.webgis-shell .absolute.top-4.right-4 {
+    top: 22px;
+    right: 22px;
+}
+
+.webgis-shell .absolute.top-4.left-4 > div > div:first-child {
+    background: var(--gis-ink) !important;
+    border-bottom-color: rgba(245, 244, 239, 0.12) !important;
+    padding-block: 0.85rem;
+}
+
+.webgis-shell .absolute.top-4.left-4 > div > div:nth-child(2) {
+    background: var(--gis-panel) !important;
+}
+
+.webgis-shell label {
+    color: var(--gis-ink-soft) !important;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+}
+
+.webgis-shell input,
+.webgis-shell select {
+    background: #f0f2ed !important;
+    border-color: var(--gis-line) !important;
+    border-radius: 5px !important;
+    color: var(--gis-ink) !important;
+    box-shadow: none !important;
+}
+
+.webgis-shell input:focus,
+.webgis-shell select:focus {
+    border-color: var(--gis-teal) !important;
+    box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.14) !important;
+}
+
+.webgis-shell button,
+.webgis-shell a {
+    transition: background-color 180ms ease, border-color 180ms ease, color 180ms ease, transform 180ms ease, box-shadow 180ms ease;
+}
+
+.webgis-shell button:active,
+.webgis-shell a:active {
+    transform: translateY(1px);
+}
+
+.webgis-shell .btn-basemap {
+    min-height: 34px;
+    border-radius: 5px !important;
+    border-color: var(--gis-line) !important;
+    box-shadow: none !important;
+}
+
+.webgis-shell .btn-basemap[data-active="true"] {
+    background: var(--gis-ink) !important;
+    border-color: var(--gis-ink) !important;
+    color: #fff !important;
+}
+
+.webgis-shell .btn-basemap[data-active="false"] {
+    background: transparent !important;
+    color: var(--gis-ink-soft) !important;
+}
+
+.webgis-shell .btn-basemap[data-active="false"]:hover {
+    background: #e9ede7 !important;
+    color: var(--gis-ink) !important;
+}
+
+.webgis-shell #btn-toggle-regency-boundary,
+.webgis-shell #btn-toggle-polygon {
+    background: transparent !important;
+    border-color: var(--gis-line) !important;
+    color: var(--gis-ink-soft) !important;
+    box-shadow: none !important;
+}
+
+.webgis-shell #btn-toggle-regency-boundary:hover,
+.webgis-shell #btn-toggle-polygon:hover {
+    background: #e9ede7 !important;
+    color: var(--gis-ink) !important;
+}
+
+.webgis-shell #btn-reset-view,
+.webgis-shell #btn-reset-filters {
+    background: var(--gis-teal) !important;
+    border-color: var(--gis-teal) !important;
+    color: white !important;
+    box-shadow: none !important;
+}
+
+.webgis-shell #btn-reset-view:hover,
+.webgis-shell #btn-reset-filters:hover {
+    background: var(--gis-teal-dark) !important;
+}
+
+.webgis-shell .absolute.bottom-6.left-4 {
+    bottom: 22px;
+    left: 22px;
+}
+
+.webgis-shell .absolute.bottom-6.left-4 > div {
+    background: var(--gis-panel) !important;
+    border-color: var(--gis-line) !important;
+    border-radius: 8px !important;
+    box-shadow: var(--gis-shadow) !important;
+}
+
+.webgis-shell #upt-detail-drawer {
+    background: var(--gis-paper) !important;
+    border-left-color: var(--gis-line) !important;
+    box-shadow: -14px 0 32px rgba(23, 37, 43, 0.16) !important;
+}
+
+.webgis-shell #btn-close-detail {
+    background: var(--gis-ink) !important;
+    border-color: transparent !important;
+    border-radius: 6px !important;
+}
+
+.webgis-shell .leaflet-control-zoom {
+    border: 1px solid var(--gis-line) !important;
+    box-shadow: var(--gis-shadow) !important;
+}
+
+.webgis-shell .leaflet-control-zoom a {
+    width: 30px !important;
+    height: 30px !important;
+    line-height: 28px !important;
+    background: var(--gis-panel) !important;
+    color: var(--gis-ink) !important;
+    border-bottom-color: var(--gis-line) !important;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Super Admin workspace: one visual system across dashboards, data tables,  */
+/* forms, reports, audit trails, archives and the WebGIS settings screens.    */
+/* -------------------------------------------------------------------------- */
+.admin-shell {
+    --admin-ink: #17252b;
+    --admin-ink-soft: #526267;
+    --admin-paper: #f4f5f1;
+    --admin-surface: #fbfcf9;
+    --admin-surface-muted: #edf0eb;
+    --admin-line: #d5dbd5;
+    --admin-teal: #0f766e;
+    --admin-teal-dark: #115e59;
+    --admin-amber: #b7791f;
+    --admin-red: #a34235;
+    --admin-shadow: 0 12px 28px rgba(23, 37, 43, 0.08), 0 2px 6px rgba(23, 37, 43, 0.05);
+    font-family: 'DM Sans', system-ui, sans-serif;
+    background: var(--admin-paper) !important;
+    color: var(--admin-ink) !important;
+}
+
+.admin-shell .font-mono,
+.admin-shell .tabular-nums {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+}
+
+.admin-shell .admin-sidebar {
+    width: 17rem;
+    background: #17252b !important;
+    box-shadow: 12px 0 32px rgba(23, 37, 43, 0.14) !important;
+}
+
+.admin-shell .admin-sidebar > div:first-child {
+    padding: 1.35rem 1.15rem 1.15rem;
+    border-bottom-color: rgba(213, 219, 213, 0.15) !important;
+}
+
+.admin-shell .admin-sidebar > div:first-child > div > div:first-child {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 6px;
+    background: #26383e !important;
+    border-color: rgba(183, 121, 31, 0.65) !important;
+    box-shadow: none !important;
+}
+
+.admin-shell .admin-sidebar h1 {
+    font-size: 0.95rem;
+    letter-spacing: -0.035em;
+}
+
+.admin-shell .admin-sidebar h1 span {
+    color: #e6b76c !important;
+}
+
+.admin-shell .admin-profile {
+    margin: 1rem 0.75rem 0.7rem;
+    border-radius: 6px !important;
+    border-color: rgba(213, 219, 213, 0.17) !important;
+    background: #203238 !important;
+}
+
+.admin-shell .admin-profile > div:first-child {
+    border-radius: 6px !important;
+    border-width: 1px !important;
+    border-color: #d6a557 !important;
+    background: #2b4248 !important;
+    color: #e6b76c !important;
+    box-shadow: none !important;
+}
+
+.admin-shell .admin-profile .text-\[\#FFB162\] {
+    color: #e6b76c !important;
+}
+
+.admin-shell .admin-nav {
+    padding-inline: 0.75rem;
+    scrollbar-color: rgba(213, 219, 213, 0.28) transparent;
+}
+
+.admin-shell .admin-nav > div {
+    color: #d6a557 !important;
+    font-size: 0.62rem;
+    letter-spacing: 0.12em;
+}
+
+.admin-shell .admin-nav a {
+    min-height: 2.55rem;
+    border-radius: 5px !important;
+    border-left: 2px solid transparent;
+    padding-inline: 0.75rem !important;
+    color: rgba(244, 245, 241, 0.67) !important;
+}
+
+.admin-shell .admin-nav a:hover {
+    color: #fff !important;
+    background: rgba(244, 245, 241, 0.08) !important;
+}
+
+.admin-shell .admin-nav a[class*="border-[#FFB162]"] {
+    border-left-color: #d6a557 !important;
+    background: #2b4248 !important;
+    color: #fff !important;
+    box-shadow: none !important;
+}
+
+.admin-shell .admin-nav a[class*="border-[#FFB162]"] svg,
+.admin-shell .admin-nav a[class*="border-[#FFB162]"] .text-\[\#FFB162\] {
+    color: #e6b76c !important;
+}
+
+.admin-shell .admin-nav a > span[class*="rounded-full"] {
+    border-radius: 3px !important;
+    background: rgba(244, 245, 241, 0.09) !important;
+    border-color: rgba(213, 219, 213, 0.2) !important;
+}
+
+.admin-shell .admin-sidebar > div:last-child {
+    padding: 0.75rem;
+    border-top-color: rgba(213, 219, 213, 0.15) !important;
+}
+
+.admin-shell .admin-sidebar > div:last-child a,
+.admin-shell .admin-sidebar > div:last-child button {
+    border-radius: 5px !important;
+    background: #203238 !important;
+    border-color: rgba(213, 219, 213, 0.2) !important;
+    box-shadow: none !important;
+}
+
+.admin-shell .admin-sidebar > div:last-child button:hover {
+    background: rgba(163, 66, 53, 0.25) !important;
+}
+
+.admin-shell .admin-main {
+    background: var(--admin-paper) !important;
+}
+
+.admin-shell .admin-topbar {
+    min-height: 78px;
+    padding: 1.15rem clamp(1rem, 2.2vw, 2rem) !important;
+    background: rgba(251, 252, 249, 0.94) !important;
+    border-bottom-color: var(--admin-line) !important;
+    box-shadow: 0 1px 0 rgba(23, 37, 43, 0.04) !important;
+    backdrop-filter: blur(12px);
+}
+
+.admin-shell .admin-topbar h2 {
+    font-size: 1.15rem;
+    letter-spacing: -0.035em;
+    color: var(--admin-ink) !important;
+}
+
+.admin-shell .admin-topbar p {
+    max-width: 58rem;
+    color: var(--admin-ink-soft) !important;
+}
+
+.admin-shell .admin-topbar a {
+    border-radius: 5px !important;
+    box-shadow: none !important;
+}
+
+.admin-shell .admin-topbar a[href*="reports.excel"] {
+    background: var(--admin-teal) !important;
+    border-color: var(--admin-teal) !important;
+    color: #fff !important;
+}
+
+.admin-shell .admin-topbar a[href*="reports.excel"]:hover {
+    background: var(--admin-teal-dark) !important;
+}
+
+.admin-shell .admin-topbar a[target="_blank"] {
+    background: var(--admin-ink) !important;
+    border-color: var(--admin-ink) !important;
+}
+
+.admin-shell .admin-content {
+    width: 100%;
+    max-width: 1500px;
+    margin-inline: auto;
+    padding: clamp(1rem, 2vw, 2rem) !important;
+}
+
+.admin-shell .admin-content > .space-y-6 > * + *,
+.admin-shell .admin-content > .space-y-5 > * + * {
+    margin-top: 1.25rem !important;
+}
+
+.admin-shell .admin-content .bg-white {
+    background: var(--admin-surface) !important;
+}
+
+.admin-shell .admin-content [class*="rounded-2xl"],
+.admin-shell .admin-content [class*="rounded-xl"] {
+    border-radius: 8px !important;
+}
+
+.admin-shell .admin-content [class*="shadow-ambient"],
+.admin-shell .admin-content [class*="shadow-2xs"],
+.admin-shell .admin-content [class*="shadow-xs"] {
+    box-shadow: var(--admin-shadow) !important;
+}
+
+.admin-shell .admin-content [class*="border-[#C9C1B1"] {
+    border-color: var(--admin-line) !important;
+}
+
+.admin-shell .admin-content input,
+.admin-shell .admin-content select,
+.admin-shell .admin-content textarea {
+    border-radius: 5px !important;
+    border-color: var(--admin-line) !important;
+    background: #f7f8f4 !important;
+    color: var(--admin-ink) !important;
+    box-shadow: none !important;
+}
+
+.admin-shell .admin-content input:focus,
+.admin-shell .admin-content select:focus,
+.admin-shell .admin-content textarea:focus {
+    border-color: var(--admin-teal) !important;
+    box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.13) !important;
+}
+
+.admin-shell .admin-content button,
+.admin-shell .admin-content a {
+    transition: background-color 180ms ease, border-color 180ms ease, color 180ms ease, transform 180ms ease, box-shadow 180ms ease;
+}
+
+.admin-shell .admin-content button:active,
+.admin-shell .admin-content a:active {
+    transform: translateY(1px);
+}
+
+.admin-shell .admin-content table {
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.admin-shell .admin-content table thead {
+    background: var(--admin-ink) !important;
+}
+
+.admin-shell .admin-content table thead th {
+    padding-top: 0.8rem;
+    padding-bottom: 0.8rem;
+    color: #edf1ec !important;
+    font-size: 0.64rem;
+    letter-spacing: 0.07em;
+}
+
+.admin-shell .admin-content table tbody tr {
+    background: transparent;
+}
+
+.admin-shell .admin-content table tbody tr:hover {
+    background: #eef2ed !important;
+}
+
+.admin-shell .admin-content table td {
+    border-color: var(--admin-line) !important;
+}
+
+.admin-shell .admin-content [class~="bg-[#1B2632]"],
+.admin-shell .admin-content [class~="bg-[#2C3B4D]"] {
+    background-color: var(--admin-ink) !important;
+}
+
+.admin-shell .admin-content [class~="bg-[#FFB162]"] {
+    background-color: #d6a557 !important;
+}
+
+.admin-shell .admin-content [class*="text-[#FFB162]"] {
+    color: #a96f17 !important;
+}
+
+.admin-shell .admin-content [class*="bg-[#A35139]"],
+.admin-shell .admin-content [class*="text-[#A35139]"] {
+    border-color: rgba(163, 66, 53, 0.35);
+}
+
+.admin-shell .admin-content a[class~="bg-[#1B2632]"],
+.admin-shell .admin-content button[class~="bg-[#1B2632]"] {
+    background: var(--admin-teal) !important;
+    border-color: var(--admin-teal) !important;
+    color: #fff !important;
+}
+
+.admin-shell .admin-content a[class~="bg-[#1B2632]"]:hover,
+.admin-shell .admin-content button[class~="bg-[#1B2632]"]:hover {
+    background: var(--admin-teal-dark) !important;
+}
+
+.admin-shell .admin-content .sigap-pagination-container {
+    background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+}
+
+.admin-shell .admin-content .sigap-page-active,
+.admin-shell .admin-content [aria-current="page"] {
+    border-radius: 5px !important;
+    background: var(--admin-teal) !important;
+    border-color: var(--admin-teal) !important;
+    box-shadow: none !important;
+}
+
+.admin-shell .admin-content .sigap-page-link:hover,
+.admin-shell .admin-content nav[aria-label="Pagination Navigation"] a:hover {
+    border-radius: 5px !important;
+    background: var(--admin-surface-muted) !important;
+    color: var(--admin-teal-dark) !important;
+}
+
+.admin-shell .admin-content [role="alert"] {
+    border-radius: 6px !important;
+    box-shadow: none !important;
+}
+
+.admin-shell .admin-content .transmigration-type-panel {
+    overflow: hidden;
+}
+
+.admin-shell .admin-content .transmigration-type-panel h3 {
+    color: var(--admin-ink) !important;
+}
+
+.admin-shell .admin-content .transmigration-type-panel canvas {
+    display: block;
+    max-width: 100%;
+}
+
+.admin-shell .admin-content .transmigration-type-legend {
+    border-top-color: var(--admin-line) !important;
+}
+
+.admin-shell .admin-content .transmigration-type-legend-row {
+    color: var(--admin-ink) !important;
+    border: 1px solid transparent;
+}
+
+.admin-shell .admin-content .transmigration-type-legend-row--tpa {
+    background: #e7eff0 !important;
+    border-color: #c8d9db !important;
+}
+
+.admin-shell .admin-content .transmigration-type-legend-row--tps {
+    background: #f7eedf !important;
+    border-color: #ead8b7 !important;
+}
+
+.admin-shell .admin-content .transmigration-type-legend-row > span {
+    color: var(--admin-ink) !important;
+}
+
+.admin-shell .admin-content .transmigration-type-legend-row strong {
+    color: var(--admin-ink) !important;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+}
+
+.admin-shell .admin-content .transmigration-type-swatch--tpa {
+    background: #24515a !important;
+}
+
+.admin-shell .admin-content .transmigration-type-swatch--tps {
+    background: #d6a557 !important;
+}
+
+.admin-shell .admin-content .stat-card,
+.admin-shell .admin-content [data-stat-card] {
+    border-radius: 8px !important;
+}
+
+.admin-shell .admin-content .bg-gradient-to-r,
+.admin-shell .admin-content .bg-gradient-to-br {
+    background-image: none !important;
+}
+
+.admin-shell .admin-footer {
+    background: rgba(251, 252, 249, 0.7) !important;
+    border-top-color: var(--admin-line) !important;
+    color: var(--admin-ink-soft) !important;
+}
+
+@media (max-width: 1023px) {
+    .admin-shell .admin-sidebar {
+        width: 100%;
+        max-height: none;
+    }
+
+    .admin-shell .admin-main {
+        overflow: visible !important;
+    }
+
+    .admin-shell .admin-content {
+        padding: 1rem !important;
+    }
+}
+
+@media (max-width: 640px) {
+    .webgis-shell header {
+        height: 64px;
+    }
+
+    .webgis-shell header .hidden.sm\:block,
+    .webgis-shell header .hidden.xl\:flex {
+        display: none !important;
+    }
+
+    .webgis-shell .absolute.top-4.left-4 {
+        top: 12px;
+        left: 12px;
+        width: calc(100vw - 24px);
+    }
+
+    .webgis-shell .absolute.top-4.right-4 {
+        top: 188px;
+        right: 12px;
+    }
+
+    .webgis-shell .absolute.bottom-6.left-4 {
+        bottom: 12px;
+        left: 12px;
     }
 }
 
@@ -92,55 +747,74 @@
     }
 }
 
-/* Custom MarkerCluster Styling */
+/* Efek Pulse / Highlight untuk Pin Titik Sasaran Langsung */
+.pin-target-pulse {
+    z-index: 10000 !important;
+    animation: targetPinBounce 1.2s ease-in-out 3;
+}
+
+@keyframes targetPinBounce {
+    0%, 100% {
+        transform: scale(1.35) translateY(-8px);
+        filter: drop-shadow(0 0 12px rgba(16, 185, 129, 0.85));
+    }
+    50% {
+        transform: scale(1.08) translateY(-2px);
+        filter: drop-shadow(0 0 4px rgba(16, 185, 129, 0.4));
+    }
+}
+
+/* Custom MarkerCluster Styling (Super Admin Architectural Theme) */
 .marker-cluster-custom {
-    background: rgba(16, 185, 129, 0.2);
-    border: 2px solid rgba(16, 185, 129, 0.8);
+    background: rgba(27, 38, 50, 0.25);
+    border: 2px solid rgba(255, 177, 98, 0.85);
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     backdrop-filter: blur(8px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 4px 14px rgba(27, 38, 50, 0.25);
     transition: all 0.25s ease;
 }
 
 .marker-cluster-custom:hover {
     transform: scale(1.1);
-    background: rgba(16, 185, 129, 0.35);
+    background: rgba(27, 38, 50, 0.4);
 }
 
 .marker-cluster-custom-inner {
     width: 32px;
     height: 32px;
     border-radius: 50%;
-    background: #064e3b;
-    color: #ffffff;
+    background: #1B2632;
+    color: #FFB162;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 12px;
     font-weight: 800;
-    box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.2);
+    font-family: monospace;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .marker-cluster-has-critical {
-    background: rgba(239, 68, 68, 0.25);
-    border-color: rgba(239, 68, 68, 0.9);
+    background: rgba(163, 81, 57, 0.3);
+    border-color: rgba(225, 29, 72, 0.9);
 }
 
 .marker-cluster-has-critical .marker-cluster-custom-inner {
     background: #881337;
+    color: #ffffff;
 }
 
-/* Modern Leaflet Popup */
+/* Modern Leaflet Popup (Super Admin Theme) */
 .leaflet-popup-content-wrapper {
-    background: rgba(255, 255, 255, 0.97) !important;
-    backdrop-filter: blur(12px) !important;
+    background: #ffffff !important;
     border-radius: 16px !important;
     padding: 0 !important;
     overflow: hidden !important;
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.12), 0 10px 10px -5px rgba(0, 0, 0, 0.04), 0 0 0 1px rgba(0, 0, 0, 0.05) !important;
+    border: 1px solid rgba(201, 193, 177, 0.8) !important;
+    box-shadow: 0 12px 32px -4px rgba(27, 38, 50, 0.18), 0 4px 12px -2px rgba(27, 38, 50, 0.08) !important;
 }
 
 .leaflet-popup-content {
@@ -152,6 +826,7 @@
 
 .leaflet-popup-tip {
     background: #ffffff !important;
+    border: 1px solid rgba(201, 193, 177, 0.8) !important;
 }
 
 /* Custom Scrollbar for Drawer and Panels */
@@ -223,6 +898,3 @@
 .sigap-page-ellipsis {
     color: #94a3b8 !important;
 }
-
-
-

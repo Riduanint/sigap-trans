@@ -15,8 +15,18 @@ class UptLocationApiController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $query = UptLocation::with('regency')
-            ->whereHas('regency', fn($q) => $q->where('is_visible', true));
+        $query = UptLocation::with('regency');
+
+        // Jika ada upt_id tertentu, pastikan UPT tersebut tetap dimuat meskipun kabupatennya sedang nonaktif
+        if ($request->filled('upt_id')) {
+            $uptId = (int) $request->upt_id;
+            $query->where(function ($q) use ($uptId) {
+                $q->whereHas('regency', fn($rq) => $rq->where('is_visible', true))
+                  ->orWhere('id', $uptId);
+            });
+        } else {
+            $query->whereHas('regency', fn($q) => $q->where('is_visible', true));
+        }
 
         // Filter Kabupaten
         if ($request->filled('regency_id') && $request->regency_id !== 'all') {

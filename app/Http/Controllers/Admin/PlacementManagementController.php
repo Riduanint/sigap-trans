@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\Regency;
 use App\Models\UptLocation;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -62,12 +63,12 @@ class PlacementManagementController extends Controller
         }
 
         // Pagination Per Page Dinamis
-        $perPage = $request->input('per_page', 15);
+        $perPage = $request->input('per_page', 10);
         if ($perPage === 'all' || (int)$perPage >= 124) {
             $perPage = 124;
         } else {
             $perPage = (int)$perPage;
-            if ($perPage < 1) $perPage = 15;
+            if ($perPage < 1) $perPage = 10;
         }
 
         $uptLocations = $query->orderBy('upt_number')->paginate($perPage)->withQueryString();
@@ -90,7 +91,7 @@ class PlacementManagementController extends Controller
         $regencies = Regency::withCount('uptLocations')->orderBy('id')->get();
         $patterns = UptLocation::select('business_pattern')->distinct()->orderBy('business_pattern')->pluck('business_pattern');
 
-        return view('admin.placements.placements', compact('uptLocations', 'regencies', 'patterns', 'stats'));
+        return view('admin.penempatan_awal.penempatan_awal', compact('uptLocations', 'regencies', 'patterns', 'stats'));
     }
 
     /**
@@ -202,5 +203,87 @@ class PlacementManagementController extends Controller
 
             fclose($handle);
         }, 200, $headers);
+    }
+
+    /**
+     * Cetak Laporan Realisasi Penempatan Awal Warga format PDF A4 Landscape
+     */
+    public function exportPdf(Request $request)
+    {
+        $query = UptLocation::with('regency')->orderBy('upt_number');
+
+        // Pencarian Nama UPT, Desa Definitif, atau Nomor UPT
+        if ($search = trim($request->input('search', ''))) {
+            $uptNumber = null;
+            if (preg_match('/\b(?:upt[-\s]*)?(\d+)\b/i', $search, $matches)) {
+                $uptNumber = (int) $matches[1];
+            }
+
+            $query->where(function ($q) use ($search, $uptNumber) {
+                $q->where('upt_name', 'ILIKE', "%{$search}%")
+                  ->orWhere('current_village_name', 'ILIKE', "%{$search}%")
+                  ->orWhereHas('regency', function ($rq) use ($search) {
+                      $rq->where('name', 'ILIKE', "%{$search}%");
+                  });
+                if ($uptNumber !== null) {
+                    $q->orWhere('upt_number', $uptNumber);
+                }
+            });
+        }
+
+        // Filter Kabupaten
+        $targetRegency = null;
+        if ($regencyId = $request->input('regency_id')) {
+            if ($regencyId !== 'all') {
+                $query->where('regency_id', (int) $regencyId);
+                $targetRegency = Regency::find($regencyId);
+            } else {
+                $query->whereHas('regency', fn($q) => $q->where('is_visible', true));
+            }
+        } else {
+            $query->whereHas('regency', fn($q) => $q->where('is_visible', true));
+        }
+
+        // Filter Pola Usaha
+        if ($pattern = $request->input('business_pattern')) {
+            if ($pattern !== 'all') {
+                $query->where('business_pattern', $pattern);
+            }
+        }
+
+        // Filter Rentang Tahun Penempatan
+        if ($placementYear = trim($request->input('placement_year', ''))) {
+            if ($placementYear !== 'all' && $placementYear !== '') {
+                $query->where('placement_year', 'ILIKE', "%{$placementYear}%");
+            }
+        }
+
+        $locations = $query->get();
+
+        if ($targetRegency) {
+            $filterRegencyName = "Kabupaten {$targetRegency->name}";
+        } else {
+            $visibleRegencies = Regency::where('is_visible', true)->orderBy('id')->get();
+            if ($visibleRegencies->count() === 9) {
+                $filterRegencyName = 'Seluruh Wilayah (9 Kabupaten Binaan)';
+            } else {
+                $filterRegencyName = "{$visibleRegencies->count()} Kabupaten Terpublikasi (" . $visibleRegencies->pluck('name')->implode(', ') . ')';
+            }
+        }
+        $signCity = 'Banjarbaru';
+        $signDate = date('d F Y');
+        $orientation = 'landscape';
+
+        $pdf = Pdf::loadView('admin.reports.pdf.placements', compact(
+            'locations',
+            'filterRegencyName',
+            'signCity',
+            'signDate',
+            'orientation'
+        ))->setPaper('a4', 'landscape');
+
+        $safeName = $targetRegency ? preg_replace('/[^A-Za-z0-9]/', '_', $targetRegency->name) : 'Kalsel';
+        $filename = "Laporan_Penempatan_Awal_UPT_{$safeName}_" . date('Ymd_His') . '.pdf';
+        return $pdf->stream($filename);
     }
 }

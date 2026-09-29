@@ -11,27 +11,37 @@ use Illuminate\View\View;
 class OperatorDashboardController extends Controller
 {
     /**
-     * Tampilkan dasbor utama operator kabupaten
+     * Tampilkan dasbor utama operator wilayah (lintas 9 kabupaten)
      */
-    public function index(): View
+    public function index(Request $request): View
     {
         $user = auth()->user();
-        $regencyId = $user->regency_id ?? 1; // Default ke Tapin jika belum di-set
-        $regency = $user->regency ?? \App\Models\Regency::find($regencyId);
+        $regencies = \App\Models\Regency::withCount('uptLocations')->orderBy('id')->get();
 
-        // Ambil daftar UPT spesifik kabupaten operator ini
-        $uptLocations = UptLocation::where('regency_id', $regencyId)
-            ->orderBy('upt_number')
-            ->get();
+        $selectedRegencyId = $request->get('regency_id', 'all');
 
-        // Statistik kependudukan & UPT lokal
-        $totalUpt = $uptLocations->count();
-        $totalPlacementKk = $uptLocations->sum('placement_kk');
-        $totalHandoverKk = $uptLocations->sum('handover_kk');
+        $uptQuery = UptLocation::with('regency');
+        if ($selectedRegencyId !== 'all' && is_numeric($selectedRegencyId)) {
+            $uptQuery->where('regency_id', (int) $selectedRegencyId);
+            $selectedRegency = $regencies->firstWhere('id', (int) $selectedRegencyId);
+        } else {
+            $selectedRegency = null;
+        }
 
-        $cleanCount = $uptLocations->where('issue_status', 'clean')->count();
-        $warningCount = $uptLocations->where('issue_status', 'warning')->count();
-        $criticalCount = $uptLocations->where('issue_status', 'critical')->count();
+        // Hitung statistik kependudukan & UPT lokal dari seluruh data sesuai filter wilayah
+        $allUptLocations = (clone $uptQuery)->get();
+        $totalUpt = $allUptLocations->count();
+        $totalPlacementKk = $allUptLocations->sum('placement_kk');
+        $totalPlacementPop = $allUptLocations->sum('placement_population');
+        $totalHandoverKk = $allUptLocations->sum('handover_kk');
+        $totalHandoverPop = $allUptLocations->sum('handover_population');
+
+        $cleanCount = $allUptLocations->where('issue_status', 'clean')->count();
+        $warningCount = $allUptLocations->where('issue_status', 'warning')->count();
+        $criticalCount = $allUptLocations->where('issue_status', 'critical')->count();
+
+        // Paginate 10 per halaman agar identik dengan tabel Super Admin (Palet MP072)
+        $uptLocations = $uptQuery->orderBy('regency_id')->orderBy('upt_number')->paginate(10)->withQueryString();
 
         // Statistik draf pengajuan usulan oleh operator
         $requestsCount = [
@@ -42,15 +52,17 @@ class OperatorDashboardController extends Controller
         ];
 
         // Riwayat draf usulan terbaru
-        $recentRequests = UptChangeRequest::with(['uptLocation', 'reviewer'])
+        $recentRequests = UptChangeRequest::with(['uptLocation.regency', 'reviewer'])
             ->where('user_id', $user->id)
             ->latest()
             ->take(10)
             ->get();
 
-        return view('operator.dashboard', compact(
+        return view('operator.dashboard_utama.dashboard_utama', compact(
             'user',
-            'regency',
+            'regencies',
+            'selectedRegency',
+            'selectedRegencyId',
             'uptLocations',
             'totalUpt',
             'totalPlacementKk',

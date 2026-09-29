@@ -24,7 +24,22 @@ class UptFamilyCard extends Model
         'housing_block',
         'land_certificate_status',
         'notes',
+        'document_path',
+        'document_name',
     ];
+
+    protected $appends = [
+        'document_url',
+    ];
+
+    public function getDocumentUrlAttribute(): ?string
+    {
+        if (!$this->document_path) {
+            return null;
+        }
+
+        return asset('storage/' . $this->document_path);
+    }
 
     protected function casts(): array
     {

@@ -7,6 +7,7 @@ use App\Models\AuditLog;
 use App\Models\Regency;
 use App\Models\UptDocument;
 use App\Models\UptLocation;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -56,7 +57,7 @@ class DocumentRepositoryController extends Controller
             'total_buku_tanah' => UptDocument::where('document_type', 'BUKU_TANAH')->count(),
         ];
 
-        return view('admin.documents.documents', compact('documents', 'uptLocations', 'regencies', 'stats'));
+        return view('admin.repositori_e_arsip_bast.repositori_e_arsip_bast', compact('documents', 'uptLocations', 'regencies', 'stats'));
     }
 
     /**
@@ -147,5 +148,78 @@ class DocumentRepositoryController extends Controller
 
         return redirect()->route('admin.documents.index')
             ->with('success', 'Berkas arsip digital berhasil dihapus.');
+    }
+
+    /**
+     * Ekspor data e-arsip ke dokumen PDF resmi berformat A4 Portrait
+     */
+    public function exportPdf(Request $request)
+    {
+        $query = UptDocument::with(['uptLocation.regency', 'uploader']);
+
+        $filterTypeLabel = 'Semua Jenis Berkas';
+        if ($request->filled('type') && $request->type !== 'all') {
+            $query->where('document_type', $request->type);
+            $filterTypeLabel = match ($request->type) {
+                'BAST' => 'BAST Pemda',
+                'BUKU_TANAH' => 'Buku Tanah',
+                'SK_GUBERNUR' => 'SK Gubernur',
+                'SK_MENTERI' => 'SK Menteri',
+                default => $request->type,
+            };
+        }
+
+        $targetRegency = null;
+        if ($request->filled('regency_id') && $request->regency_id !== 'all') {
+            $query->whereHas('uptLocation', function ($q) use ($request) {
+                $q->where('regency_id', $request->regency_id);
+            });
+            $targetRegency = Regency::find($request->regency_id);
+        } else {
+            $query->whereHas('uptLocation.regency', function ($q) {
+                $q->where('is_visible', true);
+            });
+        }
+
+        if ($request->filled('search')) {
+            $search = trim($request->search);
+            $query->where(function ($q) use ($search) {
+                $q->where('document_number', 'ILIKE', "%{$search}%")
+                  ->orWhere('file_name', 'ILIKE', "%{$search}%")
+                  ->orWhereHas('uptLocation', function ($uq) use ($search) {
+                      $uq->where('upt_name', 'ILIKE', "%{$search}%")
+                         ->orWhere('current_village_name', 'ILIKE', "%{$search}%");
+                  });
+            });
+        }
+
+        $documents = $query->latest()->get();
+
+        if ($targetRegency) {
+            $filterRegencyName = "Kabupaten {$targetRegency->name}";
+        } else {
+            $visibleRegencies = Regency::where('is_visible', true)->orderBy('id')->get();
+            if ($visibleRegencies->count() === 9) {
+                $filterRegencyName = 'Seluruh Wilayah (9 Kabupaten Binaan)';
+            } else {
+                $filterRegencyName = "{$visibleRegencies->count()} Kabupaten Terpublikasi (" . $visibleRegencies->pluck('name')->implode(', ') . ')';
+            }
+        }
+        $signCity = 'Banjarbaru';
+        $signDate = date('d F Y');
+        $orientation = 'portrait';
+
+        $pdf = Pdf::loadView('admin.reports.pdf.documents', compact(
+            'documents',
+            'filterRegencyName',
+            'filterTypeLabel',
+            'signCity',
+            'signDate',
+            'orientation'
+        ))->setPaper('a4', 'portrait');
+
+        $safeName = $targetRegency ? preg_replace('/[^A-Za-z0-9]/', '_', $targetRegency->name) : 'Kalsel';
+        $filename = "Buku_Register_EArsip_BAST_{$safeName}_" . date('Ymd_His') . '.pdf';
+        return $pdf->stream($filename);
     }
 }

@@ -17,6 +17,7 @@ class SigapWebGis {
         this.allFeatures = [];
         this.filteredFeatures = [];
         this.regencyLayers = {}; // ID -> L.geoJSON
+        this.markers = {}; // ID -> L.marker
         this.activeBasemap = 'street';
         this.tileLayers = {};
         this.showPolygons = true;
@@ -57,21 +58,22 @@ class SigapWebGis {
     }
 
     initBasemaps() {
-        // 1. Peta Jalan Modern (Carto Voyager)
-        this.tileLayers.street = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+        // 1. Peta Jalan Modern Bersih (Esri World Street Map - Bebas Watermark)
+        this.tileLayers.street = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
             maxZoom: 19,
-            subdomains: 'abcd',
+            attribution: '&copy; Esri &mdash; National Geographic, DeLorme, NAVTEQ',
         });
 
         // 2. Citra Satelit Beresolusi Tinggi (Esri World Imagery)
         this.tileLayers.satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
             maxZoom: 18,
+            attribution: '&copy; Esri',
         });
 
-        // 3. Label overlay untuk mode satelit agar batas dan nama tempat tetap terbaca
-        this.tileLayers.satelliteLabels = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}{r}.png', {
+        // 3. Label overlay untuk mode satelit agar batas dan nama tempat tetap terbaca (Esri Reference Labels)
+        this.tileLayers.satelliteLabels = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
             maxZoom: 18,
-            subdomains: 'abcd',
+            attribution: '&copy; Esri',
         });
 
         // Default: Street
@@ -93,14 +95,24 @@ class SigapWebGis {
             this.activeBasemap = 'street';
         }
 
-        // Update active pill UI
+        // Update active pill UI (Super Admin Theme)
         document.querySelectorAll('.btn-basemap').forEach(btn => {
+            const svg = btn.querySelector('svg');
+            const isActive = btn.dataset.basemap === type;
+            btn.dataset.active = isActive ? 'true' : 'false';
+            btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
             if (btn.dataset.basemap === type) {
-                btn.classList.add('bg-emerald-600', 'text-white', 'shadow-md');
-                btn.classList.remove('bg-white/80', 'text-slate-700');
+                btn.className = 'btn-basemap bg-[#1B2632] text-white font-bold text-xs px-3.5 py-1.5 rounded-xl transition flex items-center gap-1.5 shadow-ambient-xs';
+                if (svg) {
+                    svg.classList.remove('text-[#2C3B4D]');
+                    svg.classList.add('text-[#FFB162]');
+                }
             } else {
-                btn.classList.remove('bg-emerald-600', 'text-white', 'shadow-md');
-                btn.classList.add('bg-white/80', 'text-slate-700');
+                btn.className = 'btn-basemap bg-white hover:bg-[#EEE9DF]/70 text-[#2C3B4D] font-bold text-xs px-3.5 py-1.5 rounded-xl transition flex items-center gap-1.5 border border-[#C9C1B1]/40';
+                if (svg) {
+                    svg.classList.remove('text-[#FFB162]');
+                    svg.classList.add('text-[#2C3B4D]');
+                }
             }
         });
     }
@@ -168,7 +180,7 @@ class SigapWebGis {
 
                 // Tooltip saat kursor diarahkan ke kabupaten
                 layer.bindTooltip(`
-                    <div class="font-extrabold text-xs text-white">Kab. ${p.name} (${p.code_roman})</div>
+                    <div class="font-extrabold text-xs text-white">Kabupaten ${p.name}</div>
                     <div class="text-[10px] text-slate-300">Klik untuk menyaring UPT di wilayah ini</div>
                 `, {
                     sticky: true,
@@ -254,23 +266,67 @@ class SigapWebGis {
     async loadInitialData() {
         this.showLoading(true);
         try {
-            const response = await fetch('/api/upt-locations');
+            const urlParams = new URLSearchParams(window.location.search);
+            const uptIdParam = urlParams.get('upt_id') || urlParams.get('id');
+            const searchParam = urlParams.get('search');
+            const regParam = urlParams.get('regency');
+
+            const apiUrl = uptIdParam
+                ? `/api/upt-locations?upt_id=${encodeURIComponent(uptIdParam)}`
+                : '/api/upt-locations';
+
+            const response = await fetch(apiUrl);
             const data = await response.json();
 
             if (data.features) {
                 this.allFeatures = data.features;
                 this.filteredFeatures = [...this.allFeatures];
-                this.renderFeatures(this.filteredFeatures);
+
+                // Cek apakah ada sasaran UPT tertentu dari parameter URL
+                const hasTargetUpt = !!uptIdParam || (!!searchParam && this.allFeatures.some(f => {
+                    const p = f.properties;
+                    const q = searchParam.toLowerCase().trim();
+                    return (p.upt_name && p.upt_name.toLowerCase() === q) ||
+                           (p.current_village_name && p.current_village_name.toLowerCase() === q);
+                }));
+
+                // Jangan fitBounds seluruh Kalsel jika kita akan langsung fokus/terbang ke UPT tertentu
+                this.renderFeatures(this.filteredFeatures, !hasTargetUpt);
                 this.updateStatisticsDisplay(data.meta);
 
-                // Auto-filter jika ada query param regency dari URL
-                const urlParams = new URLSearchParams(window.location.search);
-                const regParam = urlParams.get('regency');
-                if (regParam) {
+                // Auto-filter jika ada query param regency dari URL (hanya jika bukan mengarah ke UPT spesifik)
+                if (regParam && !uptIdParam) {
                     const regSel = document.getElementById('filter-regency');
                     if (regSel) {
                         regSel.value = regParam;
                         this.applyFilters();
+                    }
+                }
+
+                // Navigasi langsung ke titik UPT yang dituju
+                if (uptIdParam) {
+                    setTimeout(() => {
+                        this.focusToUpt(uptIdParam);
+                    }, 300);
+                } else if (searchParam) {
+                    const query = searchParam.toLowerCase().trim();
+                    const exactMatch = this.allFeatures.find(f => {
+                        const p = f.properties;
+                        return (p.upt_name && p.upt_name.toLowerCase() === query) ||
+                               (p.current_village_name && p.current_village_name.toLowerCase() === query);
+                    });
+
+                    if (exactMatch) {
+                        setTimeout(() => {
+                            this.focusToUpt(exactMatch.id);
+                        }, 300);
+                    } else {
+                        // Jika bukan nama pasti satu UPT, masukkan ke kotak pencarian & terapkan filter
+                        const searchEl = document.getElementById('filter-search');
+                        if (searchEl) {
+                            searchEl.value = searchParam;
+                            this.applyFilters();
+                        }
                     }
                 }
             }
@@ -281,9 +337,10 @@ class SigapWebGis {
         }
     }
 
-    renderFeatures(features) {
+    renderFeatures(features, shouldFitBounds = true) {
         this.clusterGroup.clearLayers();
         this.polygonLayerGroup.clearLayers();
+        this.markers = {};
 
         const bounds = [];
 
@@ -303,8 +360,8 @@ class SigapWebGis {
             }
         });
 
-        // Otomatis sesuaikan zoom jika ada data terfilter
-        if (bounds.length > 0) {
+        // Otomatis sesuaikan zoom jika ada data terfilter dan diizinkan fitBounds
+        if (shouldFitBounds && bounds.length > 0) {
             this.map.fitBounds(L.latLngBounds(bounds), {
                 padding: [60, 60],
                 maxZoom: 12
@@ -331,6 +388,7 @@ class SigapWebGis {
 
         const marker = L.marker(latLng, { icon: icon });
         marker.feature = feature;
+        this.markers[feature.id] = marker;
 
         // Popup Content
         const popupContent = this.generatePopupHtml(feature);
@@ -374,57 +432,61 @@ class SigapWebGis {
 
         let statusBadge = '';
         if (p.issue_status === 'clean') {
-            statusBadge = `<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">🟢 Clean & Clear</span>`;
+            statusBadge = `<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">🟢 Clean & Clear</span>`;
         } else if (p.issue_status === 'warning') {
-            statusBadge = `<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300">🟡 Monitoring</span>`;
+            statusBadge = `<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200">🟡 Waspada / Monitoring</span>`;
         } else {
-            statusBadge = `<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-100 text-rose-800 border border-rose-300 animate-pulse">🔴 Prioritas Mediasi</span>`;
+            statusBadge = `<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-50 text-rose-800 border border-rose-200 animate-pulse">🔴 Kritis / Prioritas Mediasi</span>`;
         }
 
         return `
-            <div class="p-4">
-                <div class="flex items-center justify-between gap-2 border-b border-slate-100 pb-2.5 mb-3">
-                    <span class="text-xs font-extrabold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200">
+            <div class="overflow-hidden rounded-2xl bg-white font-sans text-[#1B2632] shadow-ambient-md border border-[#C9C1B1]/60">
+                <div class="bg-[#1B2632] text-white px-4 py-3 flex items-center justify-between border-b border-[#2C3B4D]">
+                    <span class="text-[10px] font-black uppercase tracking-wider text-[#FFB162] bg-[#2C3B4D] px-2.5 py-0.5 rounded-md border border-[#FFB162]/30 font-mono">
                         UPT-${numFormatted}
                     </span>
-                    <span class="text-xs font-medium text-slate-500">
+                    <span class="text-xs font-semibold text-[#EEE9DF]/80">
                         Kab. ${p.regency_name}
                     </span>
                 </div>
 
-                <h4 class="font-extrabold text-slate-900 text-base leading-tight mb-1">
-                    ${p.upt_name}
-                </h4>
-                <p class="text-xs text-slate-500 mb-3 flex items-center gap-1">
-                    <span>Desa Definitif:</span>
-                    <span class="font-semibold text-slate-700">${p.current_village_name}</span>
-                </p>
-
-                <div class="grid grid-cols-2 gap-2 bg-slate-50/90 rounded-xl p-2.5 border border-slate-200/70 mb-3 text-xs">
+                <div class="p-4 space-y-3">
                     <div>
-                        <span class="text-slate-400 block text-[10px] uppercase font-bold">Pola Usaha</span>
-                        <span class="font-bold text-slate-800">${p.business_pattern}</span>
+                        <h4 class="font-extrabold text-[#1B2632] text-base leading-tight">
+                            ${p.upt_name}
+                        </h4>
+                        <p class="text-xs text-[#2C3B4D]/70 mt-0.5 flex items-center gap-1 font-medium">
+                            <span>Desa Definitif:</span>
+                            <strong class="text-[#1B2632]">${p.current_village_name}</strong>
+                        </p>
                     </div>
-                    <div>
-                        <span class="text-slate-400 block text-[10px] uppercase font-bold">Penempatan</span>
-                        <span class="font-bold text-slate-800">${p.placement_year} (${p.placement_kk.toLocaleString()} KK)</span>
-                    </div>
-                    <div class="col-span-2 pt-1 border-t border-slate-200/60 flex items-center justify-between">
-                        <span class="text-slate-500 text-[11px]">Serah Terima:</span>
-                        <span class="font-bold text-slate-800 text-[11px]">${p.handover_year || '-'} (${p.handover_kk.toLocaleString()} KK)</span>
-                    </div>
-                </div>
 
-                <div class="mb-3 flex items-center justify-between">
-                    <span class="text-xs text-slate-500">Status Lahan:</span>
-                    ${statusBadge}
-                </div>
+                    <div class="grid grid-cols-2 gap-2 bg-[#EEE9DF]/40 rounded-xl p-2.5 border border-[#C9C1B1]/60 text-xs">
+                        <div>
+                            <span class="text-[#2C3B4D]/60 block text-[9px] uppercase font-bold">Pola Usaha</span>
+                            <span class="font-bold text-[#1B2632]">${p.business_pattern}</span>
+                        </div>
+                        <div>
+                            <span class="text-[#2C3B4D]/60 block text-[9px] uppercase font-bold">Penempatan</span>
+                            <span class="font-bold text-[#1B2632]">${p.placement_year} (${p.placement_kk.toLocaleString()} KK)</span>
+                        </div>
+                        <div class="col-span-2 pt-1 border-t border-[#C9C1B1]/40 flex items-center justify-between text-[11px]">
+                            <span class="text-[#2C3B4D]/70 font-medium">Serah Terima:</span>
+                            <strong class="text-[#1B2632] font-mono">${p.handover_year || '-'} (${p.handover_kk.toLocaleString()} KK)</strong>
+                        </div>
+                    </div>
 
-                <button onclick="window.sigapMap.openDetail(${feature.id})" 
-                    class="w-full bg-slate-900 hover:bg-emerald-600 text-white font-bold text-xs py-2 px-3 rounded-lg transition-all duration-200 flex items-center justify-center gap-1.5 shadow-sm hover:shadow">
-                    <span>Buka Riwayat Lengkap</span>
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
-                </button>
+                    <div class="flex items-center justify-between text-xs pt-1">
+                        <span class="text-[#2C3B4D]/70 font-medium">Status Lahan:</span>
+                        ${statusBadge}
+                    </div>
+
+                    <button onclick="window.sigapMap.openDetail(${feature.id})"
+                        class="w-full bg-[#1B2632] hover:bg-[#2C3B4D] text-[#EEE9DF] font-bold text-xs py-2 px-3 rounded-xl transition flex items-center justify-center gap-1.5 shadow-ambient-xs active:translate-y-0.5">
+                        <span>Buka Riwayat Lengkap</span>
+                        <svg class="w-3.5 h-3.5 text-[#FFB162]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                    </button>
+                </div>
             </div>
         `;
     }
@@ -513,6 +575,10 @@ class SigapWebGis {
         Object.keys(this.regencyLayers).forEach(id => {
             this.resetRegencyPolygonStyle(id);
         });
+
+        if (this.highlightPolygonLayer) {
+            this.highlightPolygonLayer.clearLayers();
+        }
 
         this.filteredFeatures = [...this.allFeatures];
         this.renderFeatures(this.filteredFeatures);
@@ -633,68 +699,68 @@ class SigapWebGis {
 
         let statusBadge = '';
         if (data.issue_status === 'clean') {
-            statusBadge = `<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">🟢 Clean & Clear (SHM Tuntas)</span>`;
+            statusBadge = `<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">🟢 Clean & Clear</span>`;
         } else if (data.issue_status === 'warning') {
-            statusBadge = `<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300">🟡 Perlu Monitoring Berkala</span>`;
+            statusBadge = `<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200">🟡 Waspada / Monitoring</span>`;
         } else {
-            statusBadge = `<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-800 border border-rose-300 animate-pulse">🔴 Prioritas Khusus / Mediasi Sengketa</span>`;
+            statusBadge = `<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-rose-50 text-rose-800 border border-rose-200 animate-pulse">🔴 Kritis / Prioritas Mediasi</span>`;
         }
 
         content.innerHTML = `
-            <!-- Header Kartu -->
-            <div class="p-6 border-b border-slate-200 bg-gradient-to-r from-slate-900 to-slate-800 text-white">
+            <!-- Header Kartu Detail -->
+            <div class="p-6 border-b border-[#2C3B4D] bg-[#1B2632] text-white">
                 <div class="flex items-center justify-between mb-2">
-                    <span class="text-xs font-extrabold tracking-wider uppercase bg-emerald-500 text-slate-950 px-2.5 py-0.5 rounded">
+                    <span class="text-xs font-black tracking-wider uppercase bg-[#2C3B4D] text-[#FFB162] border border-[#FFB162]/40 px-2.5 py-0.5 rounded font-mono">
                         REGISTRASI UPT-${numFormatted}
                     </span>
-                    <span class="text-xs font-medium text-slate-300">
-                        Kabupaten ${data.regency_name} (${data.regency_roman})
+                    <span class="text-xs font-semibold text-[#EEE9DF]/80">
+                        Kabupaten ${data.regency_name}
                     </span>
                 </div>
                 <h2 class="text-2xl font-black text-white leading-tight mb-1">
                     ${data.upt_name}
                 </h2>
-                <div class="flex items-center gap-2 text-sm text-emerald-300">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path></svg>
+                <div class="flex items-center gap-1.5 text-sm text-[#FFB162]">
+                    <svg class="w-4 h-4 text-[#FFB162]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path></svg>
                     <span>Desa Definitif: <strong>${data.current_village_name}</strong></span>
                 </div>
             </div>
 
-            <div class="p-6 space-y-6">
+            <div class="p-5 space-y-4 bg-[#EEE9DF]">
                 <!-- Status Legalitas Lahan -->
-                <div class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-sm">
-                    <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">Status Agraria & Pertanahan</span>
+                <div class="bg-white rounded-2xl p-4 border border-[#C9C1B1] shadow-ambient-xs">
+                    <span class="text-[10px] font-black text-[#2C3B4D]/75 uppercase tracking-wider block mb-2">Status Agraria & Pertanahan</span>
                     <div class="mb-3">${statusBadge}</div>
                     
-                    <div class="bg-slate-50 rounded-xl p-3 border border-slate-200/70 text-xs text-slate-600">
-                        <strong class="text-slate-800 block mb-1">Catatan Perkembangan Lapangan:</strong>
+                    <div class="bg-[#EEE9DF]/40 rounded-xl p-3 border border-[#C9C1B1]/60 text-xs text-[#1B2632]">
+                        <strong class="text-[#1B2632] block mb-1">Catatan Perkembangan Lapangan:</strong>
                         ${data.issue_note || 'Tidak ada catatan permasalahan khusus. Lokasi beroperasi normal.'}
                     </div>
 
-                    <div class="mt-3 flex items-center justify-between text-xs text-slate-500 pt-2 border-t border-slate-100">
+                    <div class="mt-3 flex items-center justify-between text-xs text-[#2C3B4D]/80 pt-2 border-t border-[#C9C1B1]/30">
                         <span>Sertifikasi Tanah:</span>
-                        <span class="font-bold text-slate-800">${data.shm_status || 'SHM Tuntas 100%'}</span>
+                        <strong class="text-[#1B2632] font-bold">${data.shm_status || 'SHM Tuntas 100%'}</strong>
                     </div>
                 </div>
 
                 <!-- Perbandingan Dinamika Penempatan vs Penyerahan -->
-                <div class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-sm">
-                    <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-3">Rekam Jejak Demografi</span>
+                <div class="bg-white rounded-2xl p-4 border border-[#C9C1B1] shadow-ambient-xs">
+                    <span class="text-[10px] font-black text-[#2C3B4D]/75 uppercase tracking-wider block mb-3">Rekam Jejak Demografi</span>
                     <div class="grid grid-cols-2 gap-3">
-                        <div class="bg-emerald-50/60 rounded-xl p-3.5 border border-emerald-200/80">
-                            <span class="text-[11px] font-bold text-emerald-800 uppercase block mb-1">1. Penempatan Awal</span>
-                            <div class="text-lg font-black text-emerald-950">${data.placement_kk.toLocaleString()} <span class="text-xs font-normal text-slate-600">KK</span></div>
-                            <div class="text-xs text-slate-600 font-medium">${data.placement_population.toLocaleString()} Jiwa</div>
-                            <div class="mt-2 text-[11px] text-emerald-700 font-semibold bg-emerald-100/70 px-2 py-0.5 rounded inline-block">
+                        <div class="bg-[#EEE9DF]/50 rounded-xl p-3 border border-[#C9C1B1]/60">
+                            <span class="text-[10px] font-black text-[#1B2632] uppercase block mb-1">1. Penempatan Awal</span>
+                            <div class="text-lg font-black text-[#1B2632]">${data.placement_kk.toLocaleString()} <span class="text-xs font-normal text-[#2C3B4D]/70">KK</span></div>
+                            <div class="text-xs text-[#2C3B4D]/80 font-medium">${data.placement_population.toLocaleString()} Jiwa</div>
+                            <div class="mt-2 text-[10px] text-[#2C3B4D] font-bold bg-[#C9C1B1]/40 px-2 py-0.5 rounded inline-block">
                                 Tahun ${data.placement_year}
                             </div>
                         </div>
 
-                        <div class="bg-blue-50/60 rounded-xl p-3.5 border border-blue-200/80">
-                            <span class="text-[11px] font-bold text-blue-800 uppercase block mb-1">2. Serah Terima Pemda</span>
-                            <div class="text-lg font-black text-blue-950">${data.handover_kk.toLocaleString()} <span class="text-xs font-normal text-slate-600">KK</span></div>
-                            <div class="text-xs text-slate-600 font-medium">${data.handover_population.toLocaleString()} Jiwa</div>
-                            <div class="mt-2 text-[11px] text-blue-700 font-semibold bg-blue-100/70 px-2 py-0.5 rounded inline-block">
+                        <div class="bg-[#2C3B4D]/10 rounded-xl p-3 border border-[#2C3B4D]/25">
+                            <span class="text-[10px] font-black text-[#2C3B4D] uppercase block mb-1">2. Serah Terima Pemda</span>
+                            <div class="text-lg font-black text-[#1B2632]">${data.handover_kk.toLocaleString()} <span class="text-xs font-normal text-[#2C3B4D]/70">KK</span></div>
+                            <div class="text-xs text-[#2C3B4D]/80 font-medium">${data.handover_population.toLocaleString()} Jiwa</div>
+                            <div class="mt-2 text-[10px] text-[#2C3B4D] font-bold bg-[#2C3B4D]/15 px-2 py-0.5 rounded inline-block">
                                 ${data.handover_year || 'BAST Tersedia'}
                             </div>
                         </div>
@@ -702,48 +768,51 @@ class SigapWebGis {
                 </div>
 
                 <!-- Data Teknis & Pertanian -->
-                <div class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-sm space-y-2.5 text-xs">
-                    <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">Pola Budidaya & Pertanian</span>
-                    <div class="flex items-center justify-between py-1 border-b border-slate-100">
-                        <span class="text-slate-500">Pola Usaha:</span>
-                        <span class="font-extrabold text-slate-900 bg-slate-100 px-2 py-0.5 rounded">${data.business_pattern}</span>
+                <div class="bg-white rounded-2xl p-4 border border-[#C9C1B1] shadow-ambient-xs space-y-2.5 text-xs text-[#1B2632]">
+                    <span class="text-[10px] font-black text-[#2C3B4D]/75 uppercase tracking-wider block mb-2">Pola Budidaya & Pertanian</span>
+                    <div class="flex items-center justify-between py-1 border-b border-[#C9C1B1]/30">
+                        <span class="text-[#2C3B4D]/70">Pola Usaha:</span>
+                        <span class="font-extrabold text-[#1B2632] bg-[#EEE9DF]/70 px-2.5 py-0.5 rounded-lg border border-[#C9C1B1]/50 font-mono">${data.business_pattern}</span>
                     </div>
-                    <div class="flex items-center justify-between py-1 border-b border-slate-100">
-                        <span class="text-slate-500">Titik Centroid (WGS84):</span>
-                        <span class="font-mono text-slate-700">${data.latitude.toFixed(5)}, ${data.longitude.toFixed(5)}</span>
+                    <div class="flex items-center justify-between py-1 border-b border-[#C9C1B1]/30">
+                        <span class="text-[#2C3B4D]/70">Titik Centroid (WGS84):</span>
+                        <span class="font-mono text-[#1B2632] font-semibold">${data.latitude.toFixed(5)}, ${data.longitude.toFixed(5)}</span>
                     </div>
                     <div class="flex items-center justify-between py-1">
-                        <span class="text-slate-500">Delineasi Spasial PostGIS:</span>
-                        <span class="font-semibold text-emerald-700">Poligon Aktif (EPSG:4326)</span>
+                        <span class="text-[#2C3B4D]/70">Delineasi Spasial PostGIS:</span>
+                        <span class="font-bold text-[#1B4D3E] flex items-center gap-1">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                            Poligon Aktif (EPSG:4326)
+                        </span>
                     </div>
                 </div>
 
                 <!-- Repositori E-Arsip Dokumen BAST -->
-                <div class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-sm">
+                <div class="bg-white rounded-2xl p-4 border border-[#C9C1B1] shadow-ambient-xs">
                     <div class="flex items-center justify-between mb-2">
-                        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">E-Arsip BAST & Dokumen SK</span>
-                        <span class="text-xs text-slate-400">${data.documents_count} Dokumen</span>
+                        <span class="text-[10px] font-black text-[#2C3B4D]/75 uppercase tracking-wider">E-Arsip BAST & Dokumen SK</span>
+                        <span class="text-xs font-mono font-bold text-[#1B2632] bg-[#EEE9DF] px-2 py-0.5 rounded">${data.documents_count} Dokumen</span>
                     </div>
 
-                    <div class="p-3.5 bg-amber-50/70 border border-amber-200 rounded-xl text-xs text-amber-900 mb-3">
+                    <div class="p-3 bg-[#FFB162]/15 border border-[#FFB162]/40 rounded-xl text-xs text-[#1B2632] mb-3">
                         <div class="flex items-start gap-2">
-                            <svg class="w-4 h-4 text-amber-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                            <svg class="w-4 h-4 text-[#A35139] shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
                             <div>
-                                <strong class="block font-bold">Akses Dokumen Fisik Terproteksi:</strong>
+                                <strong class="block font-bold text-[#A35139]">Akses Dokumen Fisik Terproteksi:</strong>
                                 Berkas scan BAST fisik dan telaah hukum agraria memerlukan autentikasi aparatur dinas untuk verifikasi alas hak.
                             </div>
                         </div>
                     </div>
 
-                    <a href="/login" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs py-2 px-3 rounded-lg text-center block transition">
+                    <a href="/login" class="w-full bg-[#1B2632] hover:bg-[#2C3B4D] text-[#EEE9DF] font-bold text-xs py-2.5 px-3 rounded-xl text-center block transition shadow-ambient-xs">
                         Masuk Akun Kedinasan untuk Unduh Dokumen →
                     </a>
                 </div>
 
                 <!-- Tombol Aksi Fokus Peta -->
                 <button onclick="window.sigapMap.focusOnMap(${data.latitude}, ${data.longitude}, ${data.id})"
-                    class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm py-3 px-4 rounded-xl shadow-lg shadow-emerald-600/30 transition flex items-center justify-center gap-2">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                    class="w-full bg-[#1B2632] hover:bg-[#2C3B4D] text-[#FFB162] border border-[#FFB162]/40 font-black text-sm py-3 px-4 rounded-xl shadow-ambient-xs transition flex items-center justify-center gap-2 active:translate-y-0.5">
+                    <svg class="w-4 h-4 text-[#FFB162]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
                     <span>Fokuskan ke Posisi Peta</span>
                 </button>
             </div>
@@ -757,20 +826,80 @@ class SigapWebGis {
         }
     }
 
-    focusOnMap(lat, lng, uptId) {
-        this.closeDetail();
-        this.map.flyTo([lat, lng], 14, {
-            duration: 1.2
-        });
+    focusToUpt(uptId, options = {}) {
+        const feature = this.allFeatures.find(f => String(f.id) === String(uptId));
+        if (!feature) {
+            console.warn(`UPT ID ${uptId} tidak ditemukan dalam data spasial.`);
+            return;
+        }
 
-        // Buka popup marker yang bersangkutan setelah terbang
-        setTimeout(() => {
-            this.clusterGroup.eachLayer(layer => {
-                if (layer.feature && layer.feature.id === uptId) {
-                    layer.openPopup();
+        const coords = feature.geometry.coordinates; // GeoJSON: [lng, lat]
+        const latLng = L.latLng(coords[1], coords[0]);
+        const marker = this.markers[feature.id];
+        const targetZoom = options.zoom || 15;
+
+        // Tutup detail drawer jika sedang terbuka
+        this.closeDetail();
+
+        // Highlight polygon delineasi UPT jika data poligon tersedia
+        if (this.highlightPolygonLayer) {
+            this.highlightPolygonLayer.clearLayers();
+            if (feature.properties?.polygon_geojson) {
+                const polyHighlight = L.geoJSON(feature.properties.polygon_geojson, {
+                    style: {
+                        color: '#059669',
+                        weight: 3.5,
+                        opacity: 0.95,
+                        fillColor: '#10b981',
+                        fillOpacity: 0.35,
+                        dashArray: ''
+                    }
+                });
+                this.highlightPolygonLayer.addLayer(polyHighlight);
+            }
+        }
+
+        // Buka marker dari klaster bila diperlukan dan arahkan langsung ke titik
+        if (marker && this.clusterGroup && this.clusterGroup.hasLayer(marker)) {
+            this.clusterGroup.zoomToShowLayer(marker, () => {
+                if (this.map.getZoom() < targetZoom) {
+                    this.map.flyTo(latLng, targetZoom, { duration: 0.9 });
+                    setTimeout(() => {
+                        marker.openPopup();
+                        this.pulseMarker(marker);
+                    }, 1000);
+                } else {
+                    this.map.panTo(latLng, { animate: true, duration: 0.5 });
+                    setTimeout(() => {
+                        marker.openPopup();
+                        this.pulseMarker(marker);
+                    }, 600);
                 }
             });
-        }, 1300);
+        } else {
+            this.map.flyTo(latLng, targetZoom, { duration: 1.2 });
+            setTimeout(() => {
+                if (marker) {
+                    marker.openPopup();
+                    this.pulseMarker(marker);
+                }
+            }, 1300);
+        }
+    }
+
+    pulseMarker(marker) {
+        if (!marker) return;
+        const el = marker.getElement ? marker.getElement() : null;
+        if (el) {
+            el.classList.add('pin-target-pulse');
+            setTimeout(() => {
+                el.classList.remove('pin-target-pulse');
+            }, 4500);
+        }
+    }
+
+    focusOnMap(lat, lng, uptId) {
+        this.focusToUpt(uptId, { zoom: 15 });
     }
 
     showLoading(isLoading) {

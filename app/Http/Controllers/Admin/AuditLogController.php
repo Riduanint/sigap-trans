@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\User;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\View\View;
@@ -52,7 +53,7 @@ class AuditLogController extends Controller
         // Ambil daftar unik aksi sistem untuk dropdown filter
         $availableActions = AuditLog::select('action')->distinct()->orderBy('action')->pluck('action');
 
-        return view('admin.audit_logs.audit', compact('logs', 'users', 'availableActions'));
+        return view('admin.log_audit.log_audit', compact('logs', 'users', 'availableActions'));
     }
 
     /**
@@ -124,5 +125,56 @@ class AuditLogController extends Controller
 
             fclose($file);
         }, 200, $headers);
+    }
+
+    /**
+     * Ekspor rekam jejak audit ke berkas PDF resmi (A4 Landscape)
+     */
+    public function exportPdf(Request $request)
+    {
+        $query = AuditLog::with('user');
+
+        if ($request->filled('action')) {
+            $query->where('action', $request->action);
+        }
+
+        if ($request->filled('user_id')) {
+            $query->where('user_id', $request->user_id);
+        }
+
+        if ($request->filled('start_date')) {
+            $query->whereDate('created_at', '>=', $request->start_date);
+        }
+
+        if ($request->filled('end_date')) {
+            $query->whereDate('created_at', '<=', $request->end_date);
+        }
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('action', 'ilike', "%{$search}%")
+                  ->orWhere('target_table', 'ilike', "%{$search}%")
+                  ->orWhere('target_id', 'ilike', "%{$search}%")
+                  ->orWhere('ip_address', 'ilike', "%{$search}%");
+            });
+        }
+
+        // Batasi 200 baris terbaru untuk menjaga stabilitas memori PDF
+        $logs = $query->latest('created_at')->limit(200)->get();
+
+        $signCity = 'Banjarbaru';
+        $signDate = date('d F Y');
+        $orientation = 'landscape';
+
+        $pdf = Pdf::loadView('admin.reports.pdf.audit_logs', compact(
+            'logs',
+            'signCity',
+            'signDate',
+            'orientation'
+        ))->setPaper('a4', 'landscape');
+
+        $filename = "Laporan_Audit_Trail_Sistem_" . date('Ymd_His') . '.pdf';
+        return $pdf->stream($filename);
     }
 }

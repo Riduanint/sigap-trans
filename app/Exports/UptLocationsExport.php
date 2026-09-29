@@ -72,7 +72,11 @@ class UptLocationsExport implements FromCollection, WithHeadings, WithMapping, S
             $upt->handover_year ?: '-',
             $upt->handover_kk,
             $upt->handover_population,
-            strtoupper($upt->issue_status),
+            match (strtolower($upt->issue_status ?? 'clean')) {
+                'warning' => 'WARNING',
+                'critical' => 'KRITIS',
+                default => 'CLEAN',
+            },
             $upt->shm_status ?: 'SHM Tuntas 100%',
             $upt->issue_note ?: 'Lokasi beroperasi normal.',
             $upt->latitude,
