@@ -17,7 +17,7 @@
             <td style="width: 25%;">
                 <span class="summary-label">Cakupan Wilayah</span>
                 <span class="summary-val">{{ $totalUpt }} Lokasi UPT</span>
-                <span style="font-size: 6.5pt; color: #475569;">{{ $regencies->count() }} Kabupaten Terpublikasi</span>
+                <span style="font-size: 6.5pt; color: #475569;">{{ $regencies->count() }} Kabupaten dalam laporan</span>
             </td>
             <td style="width: 25%;">
                 <span class="summary-label">Penempatan Awal</span>
@@ -48,7 +48,7 @@
 
     <!-- 2. Matriks Agregasi Sebaran 9 Kabupaten -->
     <div style="font-size: 7.5pt; font-weight: bold; color: #1B2632; text-transform: uppercase; margin: 10px 0 4px 0;">
-        Matriks Sebaran Transmigrasi per 9 Kabupaten
+        Matriks Sebaran Transmigrasi per Kabupaten
     </div>
     <table class="data-table">
         <thead>

@@ -24,7 +24,7 @@ class VerificationController extends Controller
 
         $query = UptChangeRequest::with(['uptLocation.regency', 'user', 'reviewer']);
 
-        if ($request->filled('status')) {
+        if ($request->filled('status') && $request->status !== 'all') {
             $query->where('status', $request->status);
         }
 
@@ -42,7 +42,7 @@ class VerificationController extends Controller
             });
         }
 
-        $requests = $query->latest()->paginate(15)->withQueryString();
+        $requests = ($request->status === 'pending' ? $query->oldest() : $query->latest())->orderBy('id')->paginate(15)->withQueryString();
 
         // Hitungan status untuk tab lencana
         $counts = [
@@ -114,6 +114,15 @@ class VerificationController extends Controller
                 'proposed' => $payload['shm_status'] ?? ($upt->shm_status ?? '-'),
             ],
         ];
+
+        // Compare every field that approval can apply, including explicit nulls.
+        $comparisonFields['placement_population'] = ['label' => 'Jiwa penempatan'];
+        $comparisonFields['handover_population'] = ['label' => 'Jiwa serah terima'];
+        foreach ($comparisonFields as $key => &$field) {
+            $field['current'] = $upt->{$key};
+            $field['proposed'] = array_key_exists($key, $payload) ? $payload[$key] : $upt->{$key};
+        }
+        unset($field);
 
         $registrySummary = null;
         $registrySampleCards = [];

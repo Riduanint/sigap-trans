@@ -1,5 +1,6 @@
 import './bootstrap';
 import './webgis-map';
+import './atlas';
 
 import Alpine from 'alpinejs';
 

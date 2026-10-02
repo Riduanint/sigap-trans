@@ -95,23 +95,23 @@ class SigapWebGis {
             this.activeBasemap = 'street';
         }
 
-        // Update active pill UI (Super Admin Theme)
+        // Update active pill UI (Atlas theme)
         document.querySelectorAll('.btn-basemap').forEach(btn => {
             const svg = btn.querySelector('svg');
             const isActive = btn.dataset.basemap === type;
             btn.dataset.active = isActive ? 'true' : 'false';
             btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
             if (btn.dataset.basemap === type) {
-                btn.className = 'btn-basemap bg-[#1B2632] text-white font-bold text-xs px-3.5 py-1.5 rounded-xl transition flex items-center gap-1.5 shadow-ambient-xs';
+                btn.className = 'btn-basemap bg-[#2457A7] text-white font-semibold text-xs px-3.5 py-1.5 rounded-md transition flex items-center gap-1.5';
                 if (svg) {
-                    svg.classList.remove('text-[#2C3B4D]');
-                    svg.classList.add('text-[#FFB162]');
+                    svg.classList.remove('text-[#5A6E7D]');
+                    svg.classList.add('text-white');
                 }
             } else {
-                btn.className = 'btn-basemap bg-white hover:bg-[#EEE9DF]/70 text-[#2C3B4D] font-bold text-xs px-3.5 py-1.5 rounded-xl transition flex items-center gap-1.5 border border-[#C9C1B1]/40';
+                btn.className = 'btn-basemap bg-white hover:bg-[#F3F6F8] text-[#5A6E7D] font-semibold text-xs px-3.5 py-1.5 rounded-md transition flex items-center gap-1.5 border border-[#D4DEE7]';
                 if (svg) {
-                    svg.classList.remove('text-[#FFB162]');
-                    svg.classList.add('text-[#2C3B4D]');
+                    svg.classList.remove('text-white');
+                    svg.classList.add('text-[#5A6E7D]');
                 }
             }
         });
@@ -432,59 +432,59 @@ class SigapWebGis {
 
         let statusBadge = '';
         if (p.issue_status === 'clean') {
-            statusBadge = `<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">🟢 Clean & Clear</span>`;
+            statusBadge = `<span class="atlas-status atlas-status--clean"><span aria-hidden="true"></span>Clean &amp; Clear</span>`;
         } else if (p.issue_status === 'warning') {
-            statusBadge = `<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200">🟡 Waspada / Monitoring</span>`;
+            statusBadge = `<span class="atlas-status atlas-status--warning"><span aria-hidden="true"></span>Waspada / Monitoring</span>`;
         } else {
-            statusBadge = `<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-50 text-rose-800 border border-rose-200 animate-pulse">🔴 Kritis / Prioritas Mediasi</span>`;
+            statusBadge = `<span class="atlas-status atlas-status--critical"><span aria-hidden="true"></span>Kritis / Prioritas Mediasi</span>`;
         }
 
         return `
-            <div class="overflow-hidden rounded-2xl bg-white font-sans text-[#1B2632] shadow-ambient-md border border-[#C9C1B1]/60">
-                <div class="bg-[#1B2632] text-white px-4 py-3 flex items-center justify-between border-b border-[#2C3B4D]">
-                    <span class="text-[10px] font-black uppercase tracking-wider text-[#FFB162] bg-[#2C3B4D] px-2.5 py-0.5 rounded-md border border-[#FFB162]/30 font-mono">
+            <div class="overflow-hidden rounded-lg bg-white text-[#243746] shadow-md border border-[#D4DEE7]">
+                <div class="bg-[#EDF2F6] px-4 py-3 flex items-center justify-between border-b border-[#D4DEE7]">
+                    <span class="text-[10px] font-semibold uppercase tracking-wider text-[#194482] bg-[#DAE7F6] px-2.5 py-0.5 rounded tabular-nums">
                         UPT-${numFormatted}
                     </span>
-                    <span class="text-xs font-semibold text-[#EEE9DF]/80">
+                    <span class="text-xs font-medium text-[#5A6E7D]">
                         Kab. ${p.regency_name}
                     </span>
                 </div>
 
                 <div class="p-4 space-y-3">
                     <div>
-                        <h4 class="font-extrabold text-[#1B2632] text-base leading-tight">
+                        <h4 class="font-semibold text-[#243746] text-base leading-tight">
                             ${p.upt_name}
                         </h4>
-                        <p class="text-xs text-[#2C3B4D]/70 mt-0.5 flex items-center gap-1 font-medium">
-                            <span>Desa Definitif:</span>
-                            <strong class="text-[#1B2632]">${p.current_village_name}</strong>
+                        <p class="text-xs text-[#5A6E7D] mt-0.5 flex items-center gap-1">
+                            <span>Desa definitif:</span>
+                            <strong class="text-[#243746]">${p.current_village_name}</strong>
                         </p>
                     </div>
 
-                    <div class="grid grid-cols-2 gap-2 bg-[#EEE9DF]/40 rounded-xl p-2.5 border border-[#C9C1B1]/60 text-xs">
+                    <div class="grid grid-cols-2 gap-2 bg-[#F3F6F8] rounded-md p-2.5 border border-[#D4DEE7] text-xs">
                         <div>
-                            <span class="text-[#2C3B4D]/60 block text-[9px] uppercase font-bold">Pola Usaha</span>
-                            <span class="font-bold text-[#1B2632]">${p.business_pattern}</span>
+                            <span class="text-[#5A6E7D] block text-[9px] uppercase font-semibold">Pola usaha</span>
+                            <span class="font-semibold text-[#243746]">${p.business_pattern}</span>
                         </div>
                         <div>
-                            <span class="text-[#2C3B4D]/60 block text-[9px] uppercase font-bold">Penempatan</span>
-                            <span class="font-bold text-[#1B2632]">${p.placement_year} (${p.placement_kk.toLocaleString()} KK)</span>
+                            <span class="text-[#5A6E7D] block text-[9px] uppercase font-semibold">Penempatan</span>
+                            <span class="font-semibold text-[#243746] tabular-nums">${p.placement_year} (${p.placement_kk.toLocaleString()} KK)</span>
                         </div>
-                        <div class="col-span-2 pt-1 border-t border-[#C9C1B1]/40 flex items-center justify-between text-[11px]">
-                            <span class="text-[#2C3B4D]/70 font-medium">Serah Terima:</span>
-                            <strong class="text-[#1B2632] font-mono">${p.handover_year || '-'} (${p.handover_kk.toLocaleString()} KK)</strong>
+                        <div class="col-span-2 pt-1 border-t border-[#D4DEE7] flex items-center justify-between text-[11px]">
+                            <span class="text-[#5A6E7D]">Serah terima:</span>
+                            <strong class="text-[#243746] tabular-nums">${p.handover_year || '-'} (${p.handover_kk.toLocaleString()} KK)</strong>
                         </div>
                     </div>
 
                     <div class="flex items-center justify-between text-xs pt-1">
-                        <span class="text-[#2C3B4D]/70 font-medium">Status Lahan:</span>
+                        <span class="text-[#5A6E7D]">Status lahan:</span>
                         ${statusBadge}
                     </div>
 
                     <button onclick="window.sigapMap.openDetail(${feature.id})"
-                        class="w-full bg-[#1B2632] hover:bg-[#2C3B4D] text-[#EEE9DF] font-bold text-xs py-2 px-3 rounded-xl transition flex items-center justify-center gap-1.5 shadow-ambient-xs active:translate-y-0.5">
-                        <span>Buka Riwayat Lengkap</span>
-                        <svg class="w-3.5 h-3.5 text-[#FFB162]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                        class="w-full bg-[#2457A7] hover:bg-[#194482] text-white font-semibold text-xs py-2 px-3 rounded-md transition flex items-center justify-center gap-1.5">
+                        <span>Buka riwayat lengkap</span>
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" d="M9 5l7 7-7 7"></path></svg>
                     </button>
                 </div>
             </div>
@@ -699,121 +699,121 @@ class SigapWebGis {
 
         let statusBadge = '';
         if (data.issue_status === 'clean') {
-            statusBadge = `<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">🟢 Clean & Clear</span>`;
+            statusBadge = `<span class="atlas-status atlas-status--clean"><span aria-hidden="true"></span>Clean &amp; Clear</span>`;
         } else if (data.issue_status === 'warning') {
-            statusBadge = `<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200">🟡 Waspada / Monitoring</span>`;
+            statusBadge = `<span class="atlas-status atlas-status--warning"><span aria-hidden="true"></span>Waspada / Monitoring</span>`;
         } else {
-            statusBadge = `<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-rose-50 text-rose-800 border border-rose-200 animate-pulse">🔴 Kritis / Prioritas Mediasi</span>`;
+            statusBadge = `<span class="atlas-status atlas-status--critical"><span aria-hidden="true"></span>Kritis / Prioritas Mediasi</span>`;
         }
 
         content.innerHTML = `
-            <!-- Header Kartu Detail -->
-            <div class="p-6 border-b border-[#2C3B4D] bg-[#1B2632] text-white">
-                <div class="flex items-center justify-between mb-2">
-                    <span class="text-xs font-black tracking-wider uppercase bg-[#2C3B4D] text-[#FFB162] border border-[#FFB162]/40 px-2.5 py-0.5 rounded font-mono">
-                        REGISTRASI UPT-${numFormatted}
+            <!-- Header identitas UPT (berpasangan, gaya Atlas) -->
+            <div class="p-6 border-b border-[#D4DEE7] bg-white">
+                <div class="flex items-center justify-between mb-1.5">
+                    <span class="text-[11px] font-semibold tracking-wider uppercase text-[#194482] bg-[#DAE7F6] border border-[#BDCFE4] px-2.5 py-0.5 rounded tabular-nums">
+                        Registrasi UPT-${numFormatted}
                     </span>
-                    <span class="text-xs font-semibold text-[#EEE9DF]/80">
+                    <span class="text-xs font-medium text-[#5A6E7D]">
                         Kabupaten ${data.regency_name}
                     </span>
                 </div>
-                <h2 class="text-2xl font-black text-white leading-tight mb-1">
+                <h2 class="text-2xl font-semibold text-[#243746] leading-tight mb-1" style="font-family: 'Barlow Semi Condensed', sans-serif;">
                     ${data.upt_name}
                 </h2>
-                <div class="flex items-center gap-1.5 text-sm text-[#FFB162]">
-                    <svg class="w-4 h-4 text-[#FFB162]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path></svg>
-                    <span>Desa Definitif: <strong>${data.current_village_name}</strong></span>
+                <div class="flex items-center gap-1.5 text-sm text-[#5A6E7D]">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" d="M20 10c0 6-8 11-8 11S4 16 4 10a8 8 0 1 1 16 0Zm-5 0a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"></path></svg>
+                    <span>Kini: <strong class="text-[#243746]">${data.current_village_name}</strong></span>
                 </div>
             </div>
 
-            <div class="p-5 space-y-4 bg-[#EEE9DF]">
+            <div class="p-5 space-y-4 bg-[#F3F6F8]">
                 <!-- Status Legalitas Lahan -->
-                <div class="bg-white rounded-2xl p-4 border border-[#C9C1B1] shadow-ambient-xs">
-                    <span class="text-[10px] font-black text-[#2C3B4D]/75 uppercase tracking-wider block mb-2">Status Agraria & Pertanahan</span>
+                <div class="bg-white rounded-lg p-4 border border-[#D4DEE7]">
+                    <span class="text-[10px] font-semibold text-[#5A6E7D] uppercase tracking-wider block mb-2">Status agraria &amp; pertanahan</span>
                     <div class="mb-3">${statusBadge}</div>
-                    
-                    <div class="bg-[#EEE9DF]/40 rounded-xl p-3 border border-[#C9C1B1]/60 text-xs text-[#1B2632]">
-                        <strong class="text-[#1B2632] block mb-1">Catatan Perkembangan Lapangan:</strong>
+
+                    <div class="bg-[#F3F6F8] rounded-md p-3 border border-[#D4DEE7] text-xs text-[#243746]">
+                        <strong class="text-[#243746] block mb-1">Catatan perkembangan lapangan:</strong>
                         ${data.issue_note || 'Tidak ada catatan permasalahan khusus. Lokasi beroperasi normal.'}
                     </div>
 
-                    <div class="mt-3 flex items-center justify-between text-xs text-[#2C3B4D]/80 pt-2 border-t border-[#C9C1B1]/30">
-                        <span>Sertifikasi Tanah:</span>
-                        <strong class="text-[#1B2632] font-bold">${data.shm_status || 'SHM Tuntas 100%'}</strong>
+                    <div class="mt-3 flex items-center justify-between text-xs text-[#5A6E7D] pt-2 border-t border-[#D4DEE7]">
+                        <span>Sertifikasi tanah:</span>
+                        <strong class="text-[#243746] font-semibold">${data.shm_status || 'Belum tercatat'}</strong>
                     </div>
                 </div>
 
-                <!-- Perbandingan Dinamika Penempatan vs Penyerahan -->
-                <div class="bg-white rounded-2xl p-4 border border-[#C9C1B1] shadow-ambient-xs">
-                    <span class="text-[10px] font-black text-[#2C3B4D]/75 uppercase tracking-wider block mb-3">Rekam Jejak Demografi</span>
+                <!-- Rekam jejak demografi -->
+                <div class="bg-white rounded-lg p-4 border border-[#D4DEE7]">
+                    <span class="text-[10px] font-semibold text-[#5A6E7D] uppercase tracking-wider block mb-3">Rekam jejak demografi</span>
                     <div class="grid grid-cols-2 gap-3">
-                        <div class="bg-[#EEE9DF]/50 rounded-xl p-3 border border-[#C9C1B1]/60">
-                            <span class="text-[10px] font-black text-[#1B2632] uppercase block mb-1">1. Penempatan Awal</span>
-                            <div class="text-lg font-black text-[#1B2632]">${data.placement_kk.toLocaleString()} <span class="text-xs font-normal text-[#2C3B4D]/70">KK</span></div>
-                            <div class="text-xs text-[#2C3B4D]/80 font-medium">${data.placement_population.toLocaleString()} Jiwa</div>
-                            <div class="mt-2 text-[10px] text-[#2C3B4D] font-bold bg-[#C9C1B1]/40 px-2 py-0.5 rounded inline-block">
+                        <div class="bg-[#F3F6F8] rounded-md p-3 border border-[#D4DEE7]">
+                            <span class="text-[10px] font-semibold text-[#243746] uppercase block mb-1">1. Penempatan awal</span>
+                            <div class="text-lg font-semibold text-[#243746] tabular-nums" style="font-family: 'Barlow Semi Condensed', sans-serif;">${data.placement_kk.toLocaleString()} <span class="text-xs font-normal text-[#5A6E7D]">KK</span></div>
+                            <div class="text-xs text-[#5A6E7D]">${data.placement_population.toLocaleString()} jiwa</div>
+                            <div class="mt-2 text-[10px] text-[#5A6E7D] font-semibold bg-[#E7EEF3] px-2 py-0.5 rounded inline-block tabular-nums">
                                 Tahun ${data.placement_year}
                             </div>
                         </div>
 
-                        <div class="bg-[#2C3B4D]/10 rounded-xl p-3 border border-[#2C3B4D]/25">
-                            <span class="text-[10px] font-black text-[#2C3B4D] uppercase block mb-1">2. Serah Terima Pemda</span>
-                            <div class="text-lg font-black text-[#1B2632]">${data.handover_kk.toLocaleString()} <span class="text-xs font-normal text-[#2C3B4D]/70">KK</span></div>
-                            <div class="text-xs text-[#2C3B4D]/80 font-medium">${data.handover_population.toLocaleString()} Jiwa</div>
-                            <div class="mt-2 text-[10px] text-[#2C3B4D] font-bold bg-[#2C3B4D]/15 px-2 py-0.5 rounded inline-block">
-                                ${data.handover_year || 'BAST Tersedia'}
+                        <div class="bg-[#F3F6F8] rounded-md p-3 border border-[#D4DEE7]">
+                            <span class="text-[10px] font-semibold text-[#243746] uppercase block mb-1">2. Serah terima pemda</span>
+                            <div class="text-lg font-semibold text-[#243746] tabular-nums" style="font-family: 'Barlow Semi Condensed', sans-serif;">${data.handover_kk.toLocaleString()} <span class="text-xs font-normal text-[#5A6E7D]">KK</span></div>
+                            <div class="text-xs text-[#5A6E7D]">${data.handover_population.toLocaleString()} jiwa</div>
+                            <div class="mt-2 text-[10px] text-[#5A6E7D] font-semibold bg-[#E7EEF3] px-2 py-0.5 rounded inline-block tabular-nums">
+                                ${data.handover_year || 'BAST tersedia'}
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Data Teknis & Pertanian -->
-                <div class="bg-white rounded-2xl p-4 border border-[#C9C1B1] shadow-ambient-xs space-y-2.5 text-xs text-[#1B2632]">
-                    <span class="text-[10px] font-black text-[#2C3B4D]/75 uppercase tracking-wider block mb-2">Pola Budidaya & Pertanian</span>
-                    <div class="flex items-center justify-between py-1 border-b border-[#C9C1B1]/30">
-                        <span class="text-[#2C3B4D]/70">Pola Usaha:</span>
-                        <span class="font-extrabold text-[#1B2632] bg-[#EEE9DF]/70 px-2.5 py-0.5 rounded-lg border border-[#C9C1B1]/50 font-mono">${data.business_pattern}</span>
+                <!-- Data teknis & pertanian -->
+                <div class="bg-white rounded-lg p-4 border border-[#D4DEE7] space-y-2.5 text-xs text-[#243746]">
+                    <span class="text-[10px] font-semibold text-[#5A6E7D] uppercase tracking-wider block mb-2">Pola budidaya &amp; pertanian</span>
+                    <div class="flex items-center justify-between py-1 border-b border-[#D4DEE7]">
+                        <span class="text-[#5A6E7D]">Pola usaha:</span>
+                        <span class="font-semibold text-[#243746] bg-[#F3F6F8] px-2.5 py-0.5 rounded border border-[#D4DEE7]">${data.business_pattern}</span>
                     </div>
-                    <div class="flex items-center justify-between py-1 border-b border-[#C9C1B1]/30">
-                        <span class="text-[#2C3B4D]/70">Titik Centroid (WGS84):</span>
-                        <span class="font-mono text-[#1B2632] font-semibold">${data.latitude.toFixed(5)}, ${data.longitude.toFixed(5)}</span>
+                    <div class="flex items-center justify-between py-1 border-b border-[#D4DEE7]">
+                        <span class="text-[#5A6E7D]">Titik centroid (WGS84):</span>
+                        <span class="text-[#243746] font-semibold tabular-nums">${data.latitude.toFixed(5)}, ${data.longitude.toFixed(5)}</span>
                     </div>
                     <div class="flex items-center justify-between py-1">
-                        <span class="text-[#2C3B4D]/70">Delineasi Spasial PostGIS:</span>
-                        <span class="font-bold text-[#1B4D3E] flex items-center gap-1">
-                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                            Poligon Aktif (EPSG:4326)
+                        <span class="text-[#5A6E7D]">Delineasi spasial PostGIS:</span>
+                        <span class="font-semibold text-[#287451] flex items-center gap-1">
+                            <span class="w-1.5 h-1.5 rounded-full bg-[#287451]"></span>
+                            Poligon aktif (EPSG:4326)
                         </span>
                     </div>
                 </div>
 
-                <!-- Repositori E-Arsip Dokumen BAST -->
-                <div class="bg-white rounded-2xl p-4 border border-[#C9C1B1] shadow-ambient-xs">
+                <!-- Repositori e-arsip dokumen BAST -->
+                <div class="bg-white rounded-lg p-4 border border-[#D4DEE7]">
                     <div class="flex items-center justify-between mb-2">
-                        <span class="text-[10px] font-black text-[#2C3B4D]/75 uppercase tracking-wider">E-Arsip BAST & Dokumen SK</span>
-                        <span class="text-xs font-mono font-bold text-[#1B2632] bg-[#EEE9DF] px-2 py-0.5 rounded">${data.documents_count} Dokumen</span>
+                        <span class="text-[10px] font-semibold text-[#5A6E7D] uppercase tracking-wider">E-arsip BAST &amp; dokumen SK</span>
+                        <span class="text-xs font-semibold text-[#243746] bg-[#E7EEF3] px-2 py-0.5 rounded tabular-nums">${data.documents_count} dokumen</span>
                     </div>
 
-                    <div class="p-3 bg-[#FFB162]/15 border border-[#FFB162]/40 rounded-xl text-xs text-[#1B2632] mb-3">
+                    <div class="p-3 bg-[#FAF3E4] border border-[#E7D9B4] rounded-md text-xs text-[#243746] mb-3">
                         <div class="flex items-start gap-2">
-                            <svg class="w-4 h-4 text-[#A35139] shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                            <svg class="w-4 h-4 text-[#97620B] shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
                             <div>
-                                <strong class="block font-bold text-[#A35139]">Akses Dokumen Fisik Terproteksi:</strong>
+                                <strong class="block font-semibold text-[#97620B]">Akses dokumen fisik terproteksi:</strong>
                                 Berkas scan BAST fisik dan telaah hukum agraria memerlukan autentikasi aparatur dinas untuk verifikasi alas hak.
                             </div>
                         </div>
                     </div>
 
-                    <a href="/login" class="w-full bg-[#1B2632] hover:bg-[#2C3B4D] text-[#EEE9DF] font-bold text-xs py-2.5 px-3 rounded-xl text-center block transition shadow-ambient-xs">
-                        Masuk Akun Kedinasan untuk Unduh Dokumen →
+                    <a href="/login" class="w-full bg-[#2457A7] hover:bg-[#194482] text-white font-semibold text-xs py-2.5 px-3 rounded-md text-center block transition">
+                        Masuk akun kedinasan untuk unduh dokumen →
                     </a>
                 </div>
 
-                <!-- Tombol Aksi Fokus Peta -->
+                <!-- Tombol aksi fokus peta -->
                 <button onclick="window.sigapMap.focusOnMap(${data.latitude}, ${data.longitude}, ${data.id})"
-                    class="w-full bg-[#1B2632] hover:bg-[#2C3B4D] text-[#FFB162] border border-[#FFB162]/40 font-black text-sm py-3 px-4 rounded-xl shadow-ambient-xs transition flex items-center justify-center gap-2 active:translate-y-0.5">
-                    <svg class="w-4 h-4 text-[#FFB162]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
-                    <span>Fokuskan ke Posisi Peta</span>
+                    class="w-full bg-white hover:bg-[#F3F6F8] text-[#2457A7] border border-[#2457A7] font-semibold text-sm py-3 px-4 rounded-md transition flex items-center justify-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                    <span>Fokuskan ke posisi peta</span>
                 </button>
             </div>
         `;

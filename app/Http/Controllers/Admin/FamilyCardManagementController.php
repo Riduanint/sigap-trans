@@ -10,11 +10,43 @@ use App\Models\UptLocation;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class FamilyCardManagementController extends Controller
 {
+    /**
+     * Halaman penuh Buku Registri Warga (varian Atlas, super admin).
+     * Reuse data & endpoint JSON list() yang sama; view menghitung ringkasan
+     * secara server-side agar bekerja tanpa JavaScript.
+     */
+    public function page(Request $request, int $uptId): View
+    {
+        $upt = UptLocation::with('regency')->findOrFail($uptId);
+        $stage = $request->input('stage') === 'handover' ? 'handover' : 'placement';
+
+        $cardsQuery = UptFamilyCard::where('upt_location_id', $uptId)
+            ->where('stage', $stage)
+            ->orderBy('housing_block')
+            ->orderBy('id');
+
+        $cards = $cardsQuery->paginate(20)->withQueryString();
+
+        $stageCards = UptFamilyCard::where('upt_location_id', $uptId)->where('stage', $stage);
+        $stats = [
+            'total_kk' => (int) (clone $stageCards)->count(),
+            'total_jiwa' => (int) (clone $stageCards)->sum('family_members_count'),
+            'tpa_count' => (int) (clone $stageCards)->where('transmigrant_type', 'TPA')->count(),
+            'tps_count' => (int) (clone $stageCards)->where('transmigrant_type', 'TPS')->count(),
+            'shm_count' => (int) (clone $stageCards)->where('land_certificate_status', 'ILIKE', '%SHM%')->count(),
+        ];
+        $stats['avg_jiwa'] = $stats['total_kk'] > 0 ? round($stats['total_jiwa'] / $stats['total_kk'], 2) : 0;
+        $stats['rekap_kk'] = $stage === 'handover' ? (int) $upt->handover_kk : (int) $upt->placement_kk;
+
+        return view('admin.registri_warga.registri', compact('upt', 'stage', 'cards', 'stats'));
+    }
+
     /**
      * Ambil daftar kartu keluarga nominal untuk UPT dan tahapan tertentu (JSON)
      */

@@ -85,4 +85,18 @@ class OperatorUptController extends Controller
             'perPage'
         ));
     }
+
+    /**
+     * Halaman registri warga penuh (varian Atlas) untuk UPT wilayah.
+     * Delegasi ke FamilyCardManagementController@page — data, statistik,
+     * dan pagination identik dengan halaman registri Super Admin.
+     */
+    public function registri(Request $request, int $id): \Illuminate\View\View
+    {
+        // UPT harus ada; akses registri operator dibatasi peran oleh middleware route.
+        UptLocation::with('regency')->findOrFail($id);
+
+        return app(\App\Http\Controllers\Admin\FamilyCardManagementController::class)
+            ->page($request, $id);
+    }
 }

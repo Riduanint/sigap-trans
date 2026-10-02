@@ -20,21 +20,29 @@
 }
 
 /* -------------------------------------------------------------------------- */
-/* WebGIS workspace: restrained cartographic UI, scoped to the public map.   */
+/* WebGIS workspace: Atlas palette scoped to the public map shell.           */
 /* -------------------------------------------------------------------------- */
 .webgis-shell {
-    --gis-ink: #17252b;
-    --gis-ink-soft: #41545a;
-    --gis-paper: #f5f4ef;
-    --gis-panel: rgba(250, 250, 247, 0.96);
-    --gis-line: #d5d9d2;
-    --gis-teal: #0f766e;
-    --gis-teal-dark: #115e59;
-    --gis-amber: #b7791f;
-    --gis-shadow: 0 14px 32px rgba(23, 37, 43, 0.13), 0 2px 7px rgba(23, 37, 43, 0.08);
-    font-family: 'DM Sans', system-ui, sans-serif;
+    --gis-ink: #243746;
+    --gis-ink-soft: #5a6e7d;
+    --gis-paper: #f3f6f8;
+    --gis-panel: rgba(255, 255, 255, 0.97);
+    --gis-line: #d4dee7;
+    --gis-blue: #2457a7;
+    --gis-blue-dark: #194482;
+    --gis-clean: #287451;
+    --gis-warning: #97620b;
+    --gis-critical: #b43d3d;
+    --gis-shadow: 0 10px 26px rgba(36, 55, 70, 0.1), 0 2px 6px rgba(36, 55, 70, 0.06);
+    font-family: 'Source Sans 3', system-ui, sans-serif;
     background: var(--gis-paper) !important;
     color: var(--gis-ink) !important;
+}
+
+.webgis-shell h1,
+.webgis-shell h2 {
+    font-family: 'Barlow Semi Condensed', sans-serif;
+    font-weight: 600;
 }
 
 .webgis-shell h1,
@@ -47,25 +55,28 @@
     letter-spacing: normal;
 }
 
+/* Header terang: permukaan putih + garis bawah tipis (bukan navy + amber) */
 .webgis-shell header {
     height: 72px;
     padding-inline: clamp(1rem, 2.5vw, 2.5rem);
-    background: var(--gis-ink) !important;
-    border-bottom: 3px solid var(--gis-amber) !important;
-    box-shadow: 0 5px 18px rgba(23, 37, 43, 0.18) !important;
+    background: #ffffff !important;
+    border-bottom: 1px solid var(--gis-line) !important;
+    box-shadow: none !important;
+    color: var(--gis-ink);
 }
 
 .webgis-shell header .rounded-xl {
-    border-radius: 8px;
+    border-radius: 7px;
 }
 
 .webgis-shell header h1 {
-    font-size: 1.05rem;
-    letter-spacing: -0.035em;
+    font-size: 1.1rem;
+    letter-spacing: -0.01em;
+    color: var(--gis-ink);
 }
 
 .webgis-shell header p {
-    color: rgba(245, 244, 239, 0.62) !important;
+    color: var(--gis-ink-soft) !important;
     letter-spacing: 0.01em;
 }
 
@@ -74,29 +85,33 @@
 .webgis-shell #stat-clean,
 .webgis-shell #stat-warning,
 .webgis-shell #stat-critical {
-    font-family: 'IBM Plex Mono', monospace;
+    font-family: 'Source Sans 3', monospace;
     font-variant-numeric: tabular-nums;
 }
 
+/* Merk: mark biru Atlas + wordmark tinta (menggantikan navy/amber) */
+.webgis-shell .atlas-brand-mark { display: grid; place-items: center; width: 36px; height: 36px; color: white; background: var(--gis-blue); border-radius: 4px 11px 4px 4px; flex-shrink: 0; }
+.webgis-shell .atlas-brand-mark .atlas-icon { width: 21px; height: 21px; }
+
 .webgis-shell #sigap-map {
-    background: #dfe5df !important;
+    background: #e7eef3 !important;
 }
 
 .webgis-shell .bg-white\/95,
 .webgis-shell .bg-white\/90 {
     background: var(--gis-panel) !important;
     border-color: var(--gis-line) !important;
-    border-radius: 10px !important;
+    border-radius: 7px !important;
     box-shadow: var(--gis-shadow) !important;
-    backdrop-filter: blur(10px);
+    backdrop-filter: blur(8px);
 }
 
 .webgis-shell [class*="rounded-2xl"] {
-    border-radius: 10px !important;
+    border-radius: 7px !important;
 }
 
 .webgis-shell [class*="rounded-xl"] {
-    border-radius: 6px !important;
+    border-radius: 5px !important;
 }
 
 .webgis-shell .absolute.top-4.left-4 {
@@ -110,9 +125,11 @@
     right: 22px;
 }
 
+/* Strip judul panel filter: terang (bukan navy) */
 .webgis-shell .absolute.top-4.left-4 > div > div:first-child {
-    background: var(--gis-ink) !important;
-    border-bottom-color: rgba(245, 244, 239, 0.12) !important;
+    background: #edf2f6 !important;
+    border-bottom: 1px solid var(--gis-line) !important;
+    color: var(--gis-ink);
     padding-block: 0.85rem;
 }
 
@@ -122,14 +139,14 @@
 
 .webgis-shell label {
     color: var(--gis-ink-soft) !important;
-    font-size: 0.65rem;
-    font-weight: 700;
-    letter-spacing: 0.06em;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
 }
 
 .webgis-shell input,
 .webgis-shell select {
-    background: #f0f2ed !important;
+    background: #ffffff !important;
     border-color: var(--gis-line) !important;
     border-radius: 5px !important;
     color: var(--gis-ink) !important;
@@ -138,13 +155,13 @@
 
 .webgis-shell input:focus,
 .webgis-shell select:focus {
-    border-color: var(--gis-teal) !important;
-    box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.14) !important;
+    border-color: var(--gis-blue) !important;
+    box-shadow: 0 0 0 3px rgba(36, 87, 167, 0.14) !important;
 }
 
 .webgis-shell button,
 .webgis-shell a {
-    transition: background-color 180ms ease, border-color 180ms ease, color 180ms ease, transform 180ms ease, box-shadow 180ms ease;
+    transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease, transform 140ms ease, box-shadow 140ms ease;
 }
 
 .webgis-shell button:active,
@@ -160,8 +177,8 @@
 }
 
 .webgis-shell .btn-basemap[data-active="true"] {
-    background: var(--gis-ink) !important;
-    border-color: var(--gis-ink) !important;
+    background: var(--gis-blue) !important;
+    border-color: var(--gis-blue) !important;
     color: #fff !important;
 }
 
@@ -171,7 +188,7 @@
 }
 
 .webgis-shell .btn-basemap[data-active="false"]:hover {
-    background: #e9ede7 !important;
+    background: var(--gis-paper) !important;
     color: var(--gis-ink) !important;
 }
 
@@ -185,21 +202,22 @@
 
 .webgis-shell #btn-toggle-regency-boundary:hover,
 .webgis-shell #btn-toggle-polygon:hover {
-    background: #e9ede7 !important;
+    background: var(--gis-paper) !important;
     color: var(--gis-ink) !important;
 }
 
+/* Aksi utama (reset view / reset filter): biru Atlas */
 .webgis-shell #btn-reset-view,
 .webgis-shell #btn-reset-filters {
-    background: var(--gis-teal) !important;
-    border-color: var(--gis-teal) !important;
+    background: var(--gis-blue) !important;
+    border-color: var(--gis-blue) !important;
     color: white !important;
     box-shadow: none !important;
 }
 
 .webgis-shell #btn-reset-view:hover,
 .webgis-shell #btn-reset-filters:hover {
-    background: var(--gis-teal-dark) !important;
+    background: var(--gis-blue-dark) !important;
 }
 
 .webgis-shell .absolute.bottom-6.left-4 {
@@ -210,20 +228,25 @@
 .webgis-shell .absolute.bottom-6.left-4 > div {
     background: var(--gis-panel) !important;
     border-color: var(--gis-line) !important;
-    border-radius: 8px !important;
+    border-radius: 7px !important;
     box-shadow: var(--gis-shadow) !important;
 }
 
 .webgis-shell #upt-detail-drawer {
     background: var(--gis-paper) !important;
     border-left-color: var(--gis-line) !important;
-    box-shadow: -14px 0 32px rgba(23, 37, 43, 0.16) !important;
+    box-shadow: -14px 0 32px rgba(36, 55, 70, 0.14) !important;
 }
 
 .webgis-shell #btn-close-detail {
-    background: var(--gis-ink) !important;
-    border-color: transparent !important;
-    border-radius: 6px !important;
+    background: #ffffff !important;
+    border-color: var(--gis-line) !important;
+    color: var(--gis-ink) !important;
+    border-radius: 5px !important;
+}
+
+.webgis-shell #btn-close-detail:hover {
+    background: var(--gis-paper) !important;
 }
 
 .webgis-shell .leaflet-control-zoom {
@@ -239,6 +262,13 @@
     color: var(--gis-ink) !important;
     border-bottom-color: var(--gis-line) !important;
 }
+
+/* Kartu status Atlas dipakai ulang di popup & drawer (hook .atlas-status publik) */
+.webgis-shell .atlas-status { display: inline-flex; gap: 6px; align-items: center; padding: 3px 8px; font-size: 12px; font-weight: 600; border-radius: 4px; white-space: nowrap; background: #eef2f5; color: var(--gis-ink-soft); }
+.webgis-shell .atlas-status > span { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+.webgis-shell .atlas-status--clean { color: var(--gis-clean); background: #edf6f0; }
+.webgis-shell .atlas-status--warning { color: var(--gis-warning); background: #faf3e4; }
+.webgis-shell .atlas-status--critical { color: var(--gis-critical); background: #fbeded; }
 
 /* -------------------------------------------------------------------------- */
 /* Super Admin workspace: one visual system across dashboards, data tables,  */
@@ -764,57 +794,58 @@
     }
 }
 
-/* Custom MarkerCluster Styling (Super Admin Architectural Theme) */
+/* Custom MarkerCluster Styling (Atlas Theme) */
 .marker-cluster-custom {
-    background: rgba(27, 38, 50, 0.25);
-    border: 2px solid rgba(255, 177, 98, 0.85);
+    background: rgba(36, 87, 167, 0.18);
+    border: 2px solid rgba(36, 87, 167, 0.75);
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     backdrop-filter: blur(8px);
-    box-shadow: 0 4px 14px rgba(27, 38, 50, 0.25);
+    box-shadow: 0 4px 14px rgba(36, 55, 70, 0.22);
     transition: all 0.25s ease;
 }
 
 .marker-cluster-custom:hover {
     transform: scale(1.1);
-    background: rgba(27, 38, 50, 0.4);
+    background: rgba(36, 87, 167, 0.32);
 }
 
 .marker-cluster-custom-inner {
     width: 32px;
     height: 32px;
     border-radius: 50%;
-    background: #1B2632;
-    color: #FFB162;
+    background: #2457a7;
+    color: #ffffff;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 12px;
-    font-weight: 800;
-    font-family: monospace;
-    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+    font-weight: 600;
+    font-family: 'Source Sans 3', system-ui, sans-serif;
+    font-variant-numeric: tabular-nums;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.18);
 }
 
 .marker-cluster-has-critical {
-    background: rgba(163, 81, 57, 0.3);
-    border-color: rgba(225, 29, 72, 0.9);
+    background: rgba(180, 61, 61, 0.24);
+    border-color: rgba(180, 61, 61, 0.85);
 }
 
 .marker-cluster-has-critical .marker-cluster-custom-inner {
-    background: #881337;
+    background: #b43d3d;
     color: #ffffff;
 }
 
-/* Modern Leaflet Popup (Super Admin Theme) */
+/* Modern Leaflet Popup (Atlas Theme) */
 .leaflet-popup-content-wrapper {
     background: #ffffff !important;
-    border-radius: 16px !important;
+    border-radius: 7px !important;
     padding: 0 !important;
     overflow: hidden !important;
-    border: 1px solid rgba(201, 193, 177, 0.8) !important;
-    box-shadow: 0 12px 32px -4px rgba(27, 38, 50, 0.18), 0 4px 12px -2px rgba(27, 38, 50, 0.08) !important;
+    border: 1px solid #d4dee7 !important;
+    box-shadow: 0 12px 32px -4px rgba(36, 55, 70, 0.14), 0 4px 12px -2px rgba(36, 55, 70, 0.06) !important;
 }
 
 .leaflet-popup-content {
@@ -826,7 +857,7 @@
 
 .leaflet-popup-tip {
     background: #ffffff !important;
-    border: 1px solid rgba(201, 193, 177, 0.8) !important;
+    border: 1px solid #d4dee7 !important;
 }
 
 /* Custom Scrollbar for Drawer and Panels */
@@ -851,11 +882,11 @@
 
 /* Tooltip Batas Kabupaten */
 .regency-boundary-tooltip {
-    background: rgba(15, 23, 42, 0.92) !important;
+    background: rgba(36, 55, 70, 0.94) !important;
     border: 1px solid rgba(255, 255, 255, 0.25) !important;
     color: #ffffff !important;
-    font-family: 'Plus Jakarta Sans', sans-serif !important;
-    border-radius: 8px !important;
+    font-family: 'Source Sans 3', system-ui, sans-serif !important;
+    border-radius: 5px !important;
     padding: 6px 12px !important;
     box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.35) !important;
     font-size: 11px !important;
@@ -863,7 +894,7 @@
 }
 
 .regency-boundary-tooltip::before {
-    border-top-color: rgba(15, 23, 42, 0.92) !important;
+    border-top-color: rgba(36, 55, 70, 0.94) !important;
 }
 
 /* Custom Pagination (Matching SIGAP-TRANS Theme) */

@@ -35,9 +35,9 @@ class BackupController extends Controller
 
             $dbSize = DB::selectOne("SELECT pg_size_pretty(pg_database_size(current_database()))")->pg_size_pretty ?? '28 MB';
         } catch (\Throwable $e) {
-            $pgVersion = 'PostgreSQL 18';
-            $postgisVersion = 'PostGIS 3.6';
-            $dbSize = '28 MB';
+            $pgVersion = 'Informasi versi tidak tersedia';
+            $postgisVersion = 'Informasi PostGIS tidak tersedia';
+            $dbSize = 'Belum dapat diukur';
         }
 
         // 2. Kalkulasi Ukuran Storage Berkas Dokumen BAST

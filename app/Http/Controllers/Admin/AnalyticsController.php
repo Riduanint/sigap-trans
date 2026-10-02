@@ -105,14 +105,9 @@ class AnalyticsController extends Controller
         }
 
         // 4. Komposisi Transmigran (TPA vs TPS)
-        $tpaKk = UptFamilyCard::where('transmigrant_type', 'TPA')->count();
-        $tpsKk = UptFamilyCard::where('transmigrant_type', 'TPS')->count();
+        $tpaKk = UptFamilyCard::where('stage', 'placement')->where('transmigrant_type', 'TPA')->count();
+        $tpsKk = UptFamilyCard::where('stage', 'placement')->where('transmigrant_type', 'TPS')->count();
         $totalRegKk = $tpaKk + $tpsKk;
-        if ($totalRegKk === 0) {
-            // Estimasi historis makro jika registri nominal baru diisi bertahap:
-            $tpaKk = (int) round($totalPlacementKk * 0.68);
-            $tpsKk = max(0, $totalPlacementKk - $tpaKk);
-        }
 
         // 5. Kasus Kritis Prioritas Mediasi
         $criticalCases = UptLocation::with('regency')
@@ -146,7 +141,7 @@ class AnalyticsController extends Controller
      */
     public function exportPdf()
     {
-        $visibleRegencies = Regency::where('is_visible', true)->orderBy('id')->get();
+        $visibleRegencies = Regency::query()->when(auth()->user()->role !== 'super_admin', fn ($query) => $query->where('is_visible', true))->orderBy('id')->get();
         $visibleRegencyIds = $visibleRegencies->pluck('id')->toArray();
 
         $uptQuery = UptLocation::whereIn('regency_id', $visibleRegencyIds);
@@ -162,7 +157,7 @@ class AnalyticsController extends Controller
         $criticalCount = (clone $uptQuery)->where('issue_status', 'critical')->count();
 
         // 2. Matriks Komparasi Kabupaten Terpublikasi
-        $regencyMatrix = Regency::where('is_visible', true)
+        $regencyMatrix = Regency::whereIn('id', $visibleRegencyIds)
             ->withCount('uptLocations')
             ->withSum('uptLocations as total_placement_kk', 'placement_kk')
             ->withSum('uptLocations as total_handover_kk', 'handover_kk')
@@ -242,7 +237,9 @@ class AnalyticsController extends Controller
             ->orderBy('upt_number')
             ->get();
 
-        if ($visibleRegencies->count() === 9) {
+        if (auth()->user()->role === 'super_admin') {
+            $filterRegencyName = 'Seluruh wilayah administrasi';
+        } elseif ($visibleRegencies->count() === 9) {
             $filterRegencyName = 'Seluruh Wilayah (9 Kabupaten Binaan Kalsel)';
         } else {
             $filterRegencyName = "{$visibleRegencies->count()} Kabupaten Terpublikasi (" . $visibleRegencies->pluck('name')->implode(', ') . ')';

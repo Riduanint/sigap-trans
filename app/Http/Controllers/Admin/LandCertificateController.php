@@ -35,8 +35,7 @@ class LandCertificateController extends Controller
             if ($status === '100% SHM') {
                 $query->where(function ($q) {
                     $q->where('shm_status', '100% SHM')
-                      ->orWhere('shm_status', 'Sudah SHM')
-                      ->orWhereNull('shm_status');
+                      ->orWhere('shm_status', 'Sudah SHM');
                 });
             } else {
                 $query->where('shm_status', $status);
@@ -70,8 +69,7 @@ class LandCertificateController extends Controller
         $totalUpt = UptLocation::count();
         $shm100Count = UptLocation::where(function ($q) {
             $q->where('shm_status', '100% SHM')
-              ->orWhere('shm_status', 'Sudah SHM')
-              ->orWhereNull('shm_status');
+              ->orWhere('shm_status', 'Sudah SHM');
         })->count();
 
         $shmPartialCount = UptLocation::where(function ($q) {
@@ -150,13 +148,22 @@ class LandCertificateController extends Controller
         }
 
         if ($request->filled('shm_status')) {
-            $query->where('shm_status', $request->shm_status);
+            $request->shm_status === '100% SHM'
+                ? $query->whereIn('shm_status', ['100% SHM', 'Sudah SHM'])
+                : $query->where('shm_status', $request->shm_status);
         }
 
         if ($request->filled('issue_status')) {
             $query->where('issue_status', $request->issue_status);
         }
 
+        if ($search = trim($request->input('search', ''))) {
+            $query->where(function ($q) use ($search) {
+                $q->whereLike('upt_name', "%{$search}%")->orWhereLike('current_village_name', "%{$search}%")->orWhereLike('issue_note', "%{$search}%");
+                if (is_numeric($search)) $q->orWhere('upt_number', (int) $search);
+                elseif (preg_match('/(?:upt[-_ ]?)(\d+)/i', $search, $matches)) $q->orWhere('upt_number', (int) $matches[1]);
+            });
+        }
         $upts = $query->get();
 
         $filename = "rekap_status_sertipikasi_tanah_transmigrasi_kalsel_" . date('Ymd_His') . ".csv";
@@ -197,7 +204,7 @@ class LandCertificateController extends Controller
                     $u->handover_year ?? '-',
                     $u->placement_kk ?? 0,
                     $u->handover_kk ?? 0,
-                    $u->shm_status ?? '100% SHM',
+                    $u->shm_status ?: 'Belum tercatat',
                     strtoupper($u->issue_status ?? 'clean'),
                     $u->issue_note ?? '-',
                 ]);
@@ -219,7 +226,7 @@ class LandCertificateController extends Controller
         if ($request->filled('regency_id') && $request->regency_id !== 'all') {
             $query->where('regency_id', $request->regency_id);
             $targetRegency = Regency::find($request->regency_id);
-        } else {
+        } elseif ($request->user()->role !== 'super_admin') {
             $query->whereHas('regency', fn($q) => $q->where('is_visible', true));
         }
 
@@ -229,8 +236,7 @@ class LandCertificateController extends Controller
             if ($status === '100% SHM') {
                 $query->where(function ($q) {
                     $q->where('shm_status', '100% SHM')
-                      ->orWhere('shm_status', 'Sudah SHM')
-                      ->orWhereNull('shm_status');
+                      ->orWhere('shm_status', 'Sudah SHM');
                 });
             } else {
                 $query->where('shm_status', $status);
@@ -262,6 +268,8 @@ class LandCertificateController extends Controller
 
         if ($targetRegency) {
             $filterRegencyName = "Kabupaten {$targetRegency->name}";
+        } elseif ($request->user()->role === 'super_admin') {
+            $filterRegencyName = 'Seluruh wilayah administrasi';
         } else {
             $visibleRegencies = Regency::where('is_visible', true)->orderBy('id')->get();
             if ($visibleRegencies->count() === 9) {

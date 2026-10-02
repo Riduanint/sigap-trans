@@ -61,7 +61,7 @@
         <tbody>
             @forelse($locations as $idx => $upt)
                 @php
-                    $shmLabel = $upt->shm_status ?? '100% SHM';
+                    $shmLabel = $upt->shm_status ?: 'Belum tercatat';
                 @endphp
                 <tr>
                     <td class="text-center">{{ $idx + 1 }}</td>

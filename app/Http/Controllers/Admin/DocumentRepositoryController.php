@@ -175,7 +175,7 @@ class DocumentRepositoryController extends Controller
                 $q->where('regency_id', $request->regency_id);
             });
             $targetRegency = Regency::find($request->regency_id);
-        } else {
+        } elseif ($request->user()->role !== 'super_admin') {
             $query->whereHas('uptLocation.regency', function ($q) {
                 $q->where('is_visible', true);
             });
@@ -197,6 +197,8 @@ class DocumentRepositoryController extends Controller
 
         if ($targetRegency) {
             $filterRegencyName = "Kabupaten {$targetRegency->name}";
+        } elseif ($request->user()->role === 'super_admin') {
+            $filterRegencyName = 'Seluruh wilayah administrasi';
         } else {
             $visibleRegencies = Regency::where('is_visible', true)->orderBy('id')->get();
             if ($visibleRegencies->count() === 9) {

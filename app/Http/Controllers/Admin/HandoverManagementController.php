@@ -87,6 +87,7 @@ class HandoverManagementController extends Controller
         $handedOverUpts = UptLocation::where('handover_kk', '>', 0)->count();
 
         $stats = [
+            'total_placement_pop' => (int) UptLocation::sum('placement_population'),
             'total_handover_kk' => $totalHandoverKk,
             'total_handover_pop' => $totalHandoverPop,
             'total_placement_kk' => $totalPlacementKk,
@@ -99,7 +100,6 @@ class HandoverManagementController extends Controller
 
         $regencies = Regency::withCount('uptLocations')->orderBy('id')->get();
         $years = UptLocation::whereNotNull('handover_year')->where('handover_year', '!=', '')->select('handover_year')->distinct()->orderBy('handover_year')->pluck('handover_year');
-
         return view('admin.serah_terima_pemda.serah_terima_pemda', compact('uptLocations', 'regencies', 'years', 'stats'));
     }
 
@@ -173,6 +173,19 @@ class HandoverManagementController extends Controller
             }
         }
 
+        if ($search = trim($request->input('search', ''))) {
+            $number = preg_match('/\b(?:upt[-\s]*)?(\d+)\b/i', $search, $matches) ? (int) $matches[1] : null;
+            $query->where(function ($q) use ($search, $number) {
+                $q->whereLike('upt_name', "%{$search}%")->orWhereLike('current_village_name', "%{$search}%")
+                    ->orWhereHas('regency', fn ($regency) => $regency->whereLike('name', "%{$search}%"));
+                if ($number !== null) $q->orWhere('upt_number', $number);
+            });
+        }
+        if ($request->handover_status === 'handed_over') $query->where('handover_kk', '>', 0);
+        if ($request->handover_status === 'pending') $query->where('handover_kk', '<=', 0);
+        if ($request->filled('handover_year') && $request->handover_year !== 'all') {
+            $query->whereLike('handover_year', '%' . trim($request->handover_year) . '%');
+        }
         $records = $query->get();
 
         $headers = [
@@ -258,10 +271,10 @@ class HandoverManagementController extends Controller
             if ($regencyId !== 'all') {
                 $query->where('regency_id', (int) $regencyId);
                 $targetRegency = Regency::find($regencyId);
-            } else {
+            } elseif ($request->user()->role !== 'super_admin') {
                 $query->whereHas('regency', fn($q) => $q->where('is_visible', true));
             }
-        } else {
+        } elseif ($request->user()->role !== 'super_admin') {
             $query->whereHas('regency', fn($q) => $q->where('is_visible', true));
         }
 
@@ -274,10 +287,15 @@ class HandoverManagementController extends Controller
             }
         }
 
+        if ($request->filled('handover_year') && $request->handover_year !== 'all') {
+            $query->whereLike('handover_year', '%' . trim($request->handover_year) . '%');
+        }
         $locations = $query->get();
 
         if ($targetRegency) {
             $filterRegencyName = "Kabupaten {$targetRegency->name}";
+        } elseif ($request->user()->role === 'super_admin') {
+            $filterRegencyName = 'Seluruh wilayah administrasi';
         } else {
             $visibleRegencies = Regency::where('is_visible', true)->orderBy('id')->get();
             if ($visibleRegencies->count() === 9) {

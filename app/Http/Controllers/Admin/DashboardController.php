@@ -16,67 +16,32 @@ class DashboardController extends Controller
 {
     public function index(Request $request): View
     {
-        $totalUpt = UptLocation::count();
-        $totalPlacementKk = (int) UptLocation::sum('placement_kk');
-        $totalPlacementPop = (int) UptLocation::sum('placement_population');
-        $totalHandoverKk = (int) UptLocation::sum('handover_kk');
-        $totalHandoverPop = (int) UptLocation::sum('handover_population');
+        $request->validate(['regency_id' => ['nullable', 'integer', 'exists:regencies,id']]);
+        $regencies = Regency::orderBy('name')->get();
+        $locations = UptLocation::with('regency')
+            ->when($request->filled('regency_id'), fn ($query) => $query->where('regency_id', $request->integer('regency_id')))
+            ->orderBy('upt_number')->get();
+        $pendingQuery = UptChangeRequest::with(['uptLocation.regency', 'user'])
+            ->where('status', 'pending')
+            ->when($request->filled('regency_id'), fn ($query) => $query->whereHas('uptLocation', fn ($upt) => $upt->where('regency_id', $request->integer('regency_id'))));
+        $pendingApprovals = (clone $pendingQuery)->count();
+        $pendingRequests = $pendingQuery->oldest()->orderBy('id')->limit(5)->get();
+        $priorityCases = $locations->where('issue_status', 'critical');
+        $recentLogs = AuditLog::with('user')->latest()->limit(5)->get();
+        // The authenticated workspace includes unpublished regencies as well.
+        $mapLocations = $locations->map(fn ($upt) => [
+            'id' => $upt->id,
+            'upt_number' => $upt->upt_number,
+            'upt_name' => $upt->upt_name,
+            'current_village_name' => $upt->current_village_name,
+            'regency_name' => $upt->regency?->name,
+            'issue_status' => $upt->issue_status,
+            'latitude' => $upt->latitude,
+            'longitude' => $upt->longitude,
+            'detail_url' => route('admin.upt.show', $upt->id),
+        ])->values();
 
-        $cleanCount = UptLocation::where('issue_status', 'clean')->count();
-        $warningCount = UptLocation::where('issue_status', 'warning')->count();
-        $criticalCount = UptLocation::where('issue_status', 'critical')->count();
-        $totalDocuments = UptDocument::count();
-
-        // 6 Kasus Prioritas Mediasi (Pin Merah)
-        $priorityCases = UptLocation::with('regency')
-            ->where('issue_status', 'critical')
-            ->orderBy('regency_id')
-            ->get();
-
-        // Distribusi 9 Kabupaten
-        $regencies = Regency::withCount('uptLocations')
-            ->with(['uptLocations' => function ($q) {
-                $q->select('id', 'regency_id', 'placement_kk', 'handover_kk', 'issue_status');
-            }])
-            ->orderBy('id')
-            ->get();
-
-        // Aktivitas Pengajuan Draf Terbaru & Antrean (Sesuai Wireframe 3.1)
-        $recentChangeRequests = UptChangeRequest::with(['uptLocation.regency', 'user.regency'])
-            ->latest()
-            ->take(5)
-            ->get();
-        $pendingApprovals = UptChangeRequest::where('status', 'pending')->count();
-
-        // Breakdown Pola Usaha
-        $businessPatterns = UptLocation::selectRaw('business_pattern, count(*) as count, sum(placement_kk) as total_kk')
-            ->groupBy('business_pattern')
-            ->orderByDesc('count')
-            ->get();
-
-        // Log Audit Terbaru
-        $recentLogs = AuditLog::with('user')
-            ->latest()
-            ->take(5)
-            ->get();
-
-        return view('admin.dashboard_utama.dashboard_utama', compact(
-            'totalUpt',
-            'totalPlacementKk',
-            'totalPlacementPop',
-            'totalHandoverKk',
-            'totalHandoverPop',
-            'cleanCount',
-            'warningCount',
-            'criticalCount',
-            'totalDocuments',
-            'priorityCases',
-            'regencies',
-            'recentChangeRequests',
-            'pendingApprovals',
-            'businessPatterns',
-            'recentLogs'
-        ));
+        return view('admin.dashboard_utama.dashboard_utama', compact('regencies', 'locations', 'pendingApprovals', 'pendingRequests', 'priorityCases', 'recentLogs', 'mapLocations'));
     }
 
     /**
@@ -84,7 +49,11 @@ class DashboardController extends Controller
      */
     public function exportPdf(Request $request)
     {
-        $visibleRegencies = Regency::where('is_visible', true)->orderBy('id')->get();
+        $request->validate(['regency_id' => ['nullable', 'integer', 'exists:regencies,id']]);
+        $visibleRegencies = Regency::query()
+            ->when($request->user()->role !== 'super_admin', fn ($query) => $query->where('is_visible', true))
+            ->when($request->filled('regency_id'), fn ($query) => $query->where('id', $request->integer('regency_id')))
+            ->orderBy('id')->get();
         $visibleRegencyIds = $visibleRegencies->pluck('id')->toArray();
 
         $uptQuery = UptLocation::whereIn('regency_id', $visibleRegencyIds);
@@ -104,7 +73,7 @@ class DashboardController extends Controller
             ->orderBy('regency_id')
             ->get();
 
-        $regencies = Regency::where('is_visible', true)
+        $regencies = Regency::whereIn('id', $visibleRegencyIds)
             ->withCount('uptLocations')
             ->with(['uptLocations' => function ($q) {
                 $q->select('id', 'regency_id', 'placement_kk', 'handover_kk', 'issue_status');
@@ -112,7 +81,11 @@ class DashboardController extends Controller
             ->orderBy('id')
             ->get();
 
-        if ($visibleRegencies->count() === 9) {
+        if ($request->user()->role === 'super_admin') {
+            $filterRegencyName = $request->filled('regency_id')
+                ? 'Kabupaten ' . $visibleRegencies->first()?->name
+                : 'Seluruh wilayah administrasi (' . $visibleRegencies->count() . ' kabupaten)';
+        } elseif ($visibleRegencies->count() === 9) {
             $filterRegencyName = 'Seluruh Wilayah (9 Kabupaten Binaan Kalsel)';
         } else {
             $filterRegencyName = "{$visibleRegencies->count()} Kabupaten Terpublikasi (" . $visibleRegencies->pluck('name')->implode(', ') . ')';

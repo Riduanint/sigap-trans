@@ -17,5 +17,13 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        $exceptions->render(function (\Illuminate\Session\TokenMismatchException $e, \Illuminate\Http\Request $request) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => 'Sesi Anda telah kedaluwarsa. Silakan muat ulang halaman.',
+                ], 419);
+            }
+
+            return redirect()->route('login')->with('status', 'Sesi Anda telah kedaluwarsa atau token keamanan tidak cocok. Halaman telah diperbarui, silakan masuk kembali.');
+        });
     })->create();

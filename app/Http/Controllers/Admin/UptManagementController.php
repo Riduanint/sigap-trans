@@ -72,7 +72,9 @@ class UptManagementController extends Controller
             'critical' => UptLocation::where('issue_status', 'critical')->count(),
         ];
 
-        return view('admin.master_data_upt.master_data_upt', compact('uptLocations', 'regencies', 'stats'));
+        $patterns = UptLocation::query()->distinct()->orderBy('business_pattern')->pluck('business_pattern');
+
+        return view('admin.master_data_upt.master_data_upt', compact('uptLocations', 'regencies', 'stats', 'patterns'));
     }
 
     /**
@@ -252,8 +254,8 @@ class UptManagementController extends Controller
         if ($request->filled('regency_id') && $request->regency_id !== 'all') {
             $query->where('regency_id', $request->regency_id);
             $targetRegency = Regency::find($request->regency_id);
-        } else {
-            // Sinkronisasi dengan kontrol visibilitas Wilayah Peta WebGIS
+        } elseif ($request->user()->role !== 'super_admin') {
+            // Public reporting for other roles follows map visibility.
             $query->whereHas('regency', function ($q) {
                 $q->where('is_visible', true);
             });
@@ -293,6 +295,8 @@ class UptManagementController extends Controller
 
         if ($targetRegency) {
             $filterRegencyName = "Kabupaten {$targetRegency->name}";
+        } elseif ($request->user()->role === 'super_admin') {
+            $filterRegencyName = 'Seluruh wilayah administrasi';
         } else {
             $visibleRegencies = Regency::where('is_visible', true)->orderBy('id')->get();
             if ($visibleRegencies->count() === 9) {

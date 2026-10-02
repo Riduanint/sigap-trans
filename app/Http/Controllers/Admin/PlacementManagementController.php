@@ -80,6 +80,7 @@ class PlacementManagementController extends Controller
         $totalUptWithPlacement = UptLocation::where('placement_kk', '>', 0)->count();
 
         $stats = [
+            'handover_kk' => (int) UptLocation::sum('handover_kk'),
             'total_kk' => $totalPlacementKk,
             'total_population' => $totalPlacementPop,
             'avg_pop_per_kk' => $avgPopPerKk,
@@ -160,6 +161,20 @@ class PlacementManagementController extends Controller
             }
         }
 
+        if ($search = trim($request->input('search', ''))) {
+            $number = preg_match('/\b(?:upt[-\s]*)?(\d+)\b/i', $search, $matches) ? (int) $matches[1] : null;
+            $query->where(function ($q) use ($search, $number) {
+                $q->whereLike('upt_name', "%{$search}%")->orWhereLike('current_village_name', "%{$search}%")
+                    ->orWhereHas('regency', fn ($regency) => $regency->whereLike('name', "%{$search}%"));
+                if ($number !== null) $q->orWhere('upt_number', $number);
+            });
+        }
+        if ($request->filled('business_pattern') && $request->business_pattern !== 'all') {
+            $query->where('business_pattern', $request->business_pattern);
+        }
+        if ($request->filled('placement_year') && $request->placement_year !== 'all') {
+            $query->whereLike('placement_year', '%' . trim($request->placement_year) . '%');
+        }
         $records = $query->get();
 
         $headers = [
@@ -237,10 +252,10 @@ class PlacementManagementController extends Controller
             if ($regencyId !== 'all') {
                 $query->where('regency_id', (int) $regencyId);
                 $targetRegency = Regency::find($regencyId);
-            } else {
+            } elseif ($request->user()->role !== 'super_admin') {
                 $query->whereHas('regency', fn($q) => $q->where('is_visible', true));
             }
-        } else {
+        } elseif ($request->user()->role !== 'super_admin') {
             $query->whereHas('regency', fn($q) => $q->where('is_visible', true));
         }
 
@@ -262,6 +277,8 @@ class PlacementManagementController extends Controller
 
         if ($targetRegency) {
             $filterRegencyName = "Kabupaten {$targetRegency->name}";
+        } elseif ($request->user()->role === 'super_admin') {
+            $filterRegencyName = 'Seluruh wilayah administrasi';
         } else {
             $visibleRegencies = Regency::where('is_visible', true)->orderBy('id')->get();
             if ($visibleRegencies->count() === 9) {

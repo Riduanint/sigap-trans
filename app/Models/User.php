@@ -96,4 +96,13 @@ class User extends Authenticatable
     {
         return $this->role === 'mitra_bpn';
     }
+
+    /**
+     * Jumlah draf usulan milik operator yang masih menunggu verifikasi
+     * (dipakai badge sidebar Atlas).
+     */
+    public function pendingRequestsCount(): int
+    {
+        return $this->changeRequests()->where('status', 'pending')->count();
+    }
 }

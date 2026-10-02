@@ -76,6 +76,7 @@ Route::middleware(['auth', 'role:super_admin,eksekutif,mitra_bpn'])->prefix('adm
     Route::get('/upt/{id}', [UptManagementController::class, 'show'])->name('upt.show')->whereNumber('id');
     Route::get('/upt/{id}/edit', [UptManagementController::class, 'edit'])->name('upt.edit')->whereNumber('id');
     Route::put('/upt/{id}', [UptManagementController::class, 'update'])->name('upt.update')->whereNumber('id');
+    Route::get('/upt/{id}/registri', [FamilyCardManagementController::class, 'page'])->name('upt.registri')->whereNumber('id');
 
     // Menu Kelola Data: Penempatan Awal
     Route::get('/placements', [PlacementManagementController::class, 'index'])->name('placements.index');
@@ -148,6 +149,7 @@ Route::middleware(['auth', 'role:super_admin,eksekutif,mitra_bpn,operator_kabupa
 Route::middleware(['auth', 'role:operator_kabupaten'])->prefix('operator')->name('operator.')->group(function () {
     Route::get('/dashboard', [OperatorDashboardController::class, 'index'])->name('dashboard');
     Route::get('/upt', [OperatorUptController::class, 'index'])->name('upt.index');
+    Route::get('/upt/{id}/registri', [OperatorUptController::class, 'registri'])->name('upt.registri')->whereNumber('id');
     Route::get('/requests', [OperatorChangeRequestController::class, 'index'])->name('requests.index');
     Route::get('/requests/create', [OperatorChangeRequestController::class, 'create'])->name('requests.create');
     Route::post('/requests', [OperatorChangeRequestController::class, 'store'])->name('requests.store');
