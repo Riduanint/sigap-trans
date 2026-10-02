@@ -8,7 +8,7 @@
 <div class="atlas-metrics" aria-label="Ringkasan analitik">
     <div class="atlas-metric"><div><strong>{{ $definitifUptCount }}<span>/ {{ $totalUpt }}</span></strong><small>UPT diserahkan ke pemda ({{ $handoverRate }}%) · {{ $binaanUptCount }} masih binaan</small></div></div>
     <div class="atlas-metric"><div><strong>{{ number_format($totalHandoverKk, 0, ',', '.') }}</strong><small>KK serah terima · awal {{ number_format($totalPlacementKk, 0, ',', '.') }} KK</small></div></div>
-    <div class="atlas-metric"><div><strong>{{ $handoverGrowthKk >= 0 ? '+' : '' }}{{ number_format($handoverGrowthKk, 0, ',', '.') }}</strong><small>Selisih penempatan–serah terima ({{ $handoverGrowthPct }}%) — bukan pertumbuhan alami</small></div></div>
+    <div class="atlas-metric"><div><strong>{{ $handoverGrowthKk >= 0 ? '+' : '' }}{{ number_format($handoverGrowthKk, 0, ',', '.') }}</strong><small>Selisih penempatan–serah terima ({{ $handoverGrowthPct }}%) · bukan pertumbuhan alami</small></div></div>
     <div class="atlas-metric"><div><strong>{{ number_format($tpaKk, 0, ',', '.') }}<span>/ {{ number_format($tpsKk, 0, ',', '.') }}</span></strong><small>TPA (asal) / TPS (setempat) dari registri penempatan</small></div></div>
     <div class="atlas-metric"><div><strong>{{ $cleanCount }}<span>/ {{ $warningCount }}<span>/ {{ $criticalCount }}</span></span></strong><small>Lahan: Clean / Monitoring / Kritis</small></div></div>
 </div>

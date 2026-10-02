@@ -204,12 +204,16 @@
 .atlas-dialog__foot { display: flex; justify-content: flex-end; gap: 10px; padding: 15px 20px; border-top: 1px solid var(--atlas-line); background: #f8fafc; border-radius: 0 0 var(--atlas-radius) var(--atlas-radius); }
 
 /* Metric strip — single-line stats replacing legacy KPI card rows */
-.atlas-metrics { display: flex; flex-wrap: wrap; gap: 0; background: white; border: 1px solid var(--atlas-line); border-radius: var(--atlas-radius); margin-bottom: 22px; }
-.atlas-metric { display: flex; align-items: baseline; gap: 9px; padding: 15px 22px; border-right: 1px solid var(--atlas-line); flex: 1 1 auto; min-width: 170px; }
+.atlas-metrics { display: flex; flex-wrap: nowrap; gap: 0; background: white; border: 1px solid var(--atlas-line); border-radius: var(--atlas-radius); margin-bottom: 22px; overflow: hidden; }
+.atlas-metric { display: flex; align-items: baseline; gap: 9px; padding: 14px 16px; border-right: 1px solid var(--atlas-line); flex: 1 1 0; min-width: 0; }
 .atlas-metric:last-child { border-right: 0; }
 .atlas-metric strong { font-family: 'Barlow Semi Condensed', sans-serif; font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; }
-.atlas-metric small { display: block; font-size: 12px; color: var(--atlas-muted); }
+.atlas-metric strong + span { margin-left: 5px; }
+.atlas-metric small { display: block; font-size: 12px; color: var(--atlas-muted); line-height: 1.35; overflow-wrap: break-word; }
 .atlas-metric span { font-size: 13px; color: var(--atlas-muted); }
+a.atlas-metric { text-decoration: none; color: inherit; }
+a.atlas-metric:hover { background: #f8fafc; }
+a.atlas-metric:hover strong { color: var(--atlas-blue); }
 
 /* Auth — Atlas login (palet & tipografi sama dengan shell kerja) */
 .atlas-auth { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 28px 16px; background: var(--atlas-canvas); color: var(--atlas-ink); font-family: 'Source Sans 3', system-ui, sans-serif; }
@@ -239,6 +243,11 @@
     .atlas-auth-test-grid { grid-template-columns: 1fr; }
     .atlas-auth-card { max-width: none; }
     .atlas-auth-top { max-width: none; }
+}
+
+@media (max-width: 1200px) {
+    .atlas-metric { padding: 12px 12px; }
+    .atlas-metric strong { font-size: 21px; }
 }
 
 @media (max-width: 1023px) {

@@ -9,10 +9,25 @@
     </select>
     <noscript><button class="atlas-button">Terapkan</button></noscript>
 </form>
-<div class="atlas-stats">
-    <a class="atlas-stat" href="{{ route('admin.verification.index', array_merge(request()->only('regency_id'), ['status' => 'pending'])) }}"><strong>{{ $pendingApprovals }}</strong><div><span>Menunggu verifikasi</span><small>Usulan yang belum diproses</small></div></a>
-    <a class="atlas-stat" href="{{ route('admin.upt.index', array_merge(request()->only('regency_id'), ['status' => 'critical'])) }}"><strong>{{ $priorityCases->count() }}</strong><div><span>Prioritas mediasi</span><small>Lokasi berstatus kritis</small></div></a>
-    <a class="atlas-stat" href="{{ route('admin.upt.index', request()->only('regency_id')) }}"><strong>{{ $locations->count() }}</strong><div><span>UPT terdaftar</span><small>Termasuk wilayah belum dipublikasikan</small></div></a>
+<div class="atlas-metrics" aria-label="Ringkasan pekerjaan">
+    <a class="atlas-metric" href="{{ route('admin.verification.index', array_merge(request()->only('regency_id'), ['status' => 'pending'])) }}">
+        <div>
+            <strong>{{ $pendingApprovals }}</strong><span>Menunggu verifikasi</span>
+            <small>Usulan yang belum diproses</small>
+        </div>
+    </a>
+    <a class="atlas-metric" href="{{ route('admin.upt.index', array_merge(request()->only('regency_id'), ['status' => 'critical'])) }}">
+        <div>
+            <strong>{{ $priorityCases->count() }}</strong><span>Prioritas mediasi</span>
+            <small>Lokasi berstatus kritis</small>
+        </div>
+    </a>
+    <a class="atlas-metric" href="{{ route('admin.upt.index', request()->only('regency_id')) }}">
+        <div>
+            <strong>{{ $locations->count() }}</strong><span>UPT terdaftar</span>
+            <small>Termasuk wilayah belum dipublikasikan</small>
+        </div>
+    </a>
 </div>
 <div class="atlas-stack">
     <div class="atlas-dashboard-grid">
