@@ -1,9 +1,9 @@
 @extends('layouts.admin')
 @section('atlas_subtitle', 'Periksa usulan kabupaten dan tindak lanjuti lokasi yang memerlukan perhatian.')
 @section('content')
-<form method="GET" action="{{ route('admin.dashboard') }}" class="atlas-inline">
-    <label for="dashboard-regency" class="atlas-muted">Wilayah kerja</label>
-    <select name="regency_id" id="dashboard-regency" class="rounded border-slate-300 text-sm" onchange="this.form.submit()">
+<form method="GET" action="{{ route('admin.dashboard') }}" class="atlas-inline" style="margin-bottom: 20px;">
+    <label for="dashboard-regency" class="atlas-muted" style="font-size: 13px; font-weight: 500;">Wilayah kerja</label>
+    <select name="regency_id" id="dashboard-regency" class="rounded border-slate-300 text-sm" style="min-height: 38px; border: 1px solid var(--atlas-line); background-color: #fff; color: var(--atlas-ink); border-radius: 6px; padding: 6px 32px 6px 12px;" onchange="this.form.submit()">
         <option value="">Semua kabupaten</option>
         @foreach($regencies as $regency)<option value="{{ $regency->id }}" @selected(request('regency_id') == $regency->id)>{{ $regency->name }}</option>@endforeach
     </select>
