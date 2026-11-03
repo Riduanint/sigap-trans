@@ -22,7 +22,12 @@ class DocumentRepositoryController extends Controller
      */
     public function index(Request $request): View
     {
+        $isOperator = $request->user() && $request->user()->role === 'operator_kabupaten';
         $query = UptDocument::with(['uptLocation.regency', 'uploader']);
+
+        if ($isOperator) {
+            $query->whereHas('uptLocation.regency', fn($q) => $q->where('is_visible', true));
+        }
 
         if ($request->filled('type') && $request->type !== 'all') {
             $query->where('document_type', $request->type);
@@ -47,14 +52,28 @@ class DocumentRepositoryController extends Controller
         }
 
         $documents = $query->latest()->paginate(12)->withQueryString();
-        $uptLocations = UptLocation::orderBy('upt_number')->get(['id', 'upt_number', 'upt_name', 'regency_id']);
-        $regencies = Regency::orderBy('id')->get();
+
+        $uptLocationsQuery = UptLocation::query();
+        $regenciesQuery = Regency::orderBy('id');
+
+        if ($isOperator) {
+            $uptLocationsQuery->whereHas('regency', fn($q) => $q->where('is_visible', true));
+            $regenciesQuery->where('is_visible', true);
+        }
+
+        $uptLocations = $uptLocationsQuery->orderBy('upt_number')->get(['id', 'upt_number', 'upt_name', 'regency_id']);
+        $regencies = $regenciesQuery->get();
+
+        $statsQuery = UptDocument::query();
+        if ($isOperator) {
+            $statsQuery->whereHas('uptLocation.regency', fn($q) => $q->where('is_visible', true));
+        }
 
         $stats = [
-            'total_docs' => UptDocument::count(),
-            'total_bast' => UptDocument::where('document_type', 'BAST')->count(),
-            'total_sk' => UptDocument::whereIn('document_type', ['SK_GUBERNUR', 'SK_MENTERI'])->count(),
-            'total_buku_tanah' => UptDocument::where('document_type', 'BUKU_TANAH')->count(),
+            'total_docs' => (clone $statsQuery)->count(),
+            'total_bast' => (clone $statsQuery)->where('document_type', 'BAST')->count(),
+            'total_sk' => (clone $statsQuery)->whereIn('document_type', ['SK_GUBERNUR', 'SK_MENTERI'])->count(),
+            'total_buku_tanah' => (clone $statsQuery)->where('document_type', 'BUKU_TANAH')->count(),
         ];
 
         return view('admin.repositori_e_arsip_bast.repositori_e_arsip_bast', compact('documents', 'uptLocations', 'regencies', 'stats'));

@@ -6,11 +6,11 @@
     <div class="atlas-metric"><div><strong>{{ $stats['visible_regencies'] }}<span>/ {{ $stats['total_regencies'] }}</span></strong><small>Kabupaten tampil di peta publik · {{ $stats['hidden_regencies'] }} disembunyikan</small></div></div>
     <div class="atlas-metric"><div><strong id="stat-visible-upts">{{ $stats['visible_upts'] }}<span>/ {{ $totalUpt }}</span></strong><small>UPT ikut tampil pada peta</small></div></div>
     <div class="atlas-metric">
-        <form method="POST" action="{{ route('admin.regencies.bulk-visibility') }}">@csrf
+        <form method="POST" action="{{ route('admin.regencies.bulk-visibility') }}" data-confirm="Tampilkan semua wilayah kabupaten pada peta publik WebGIS?" data-confirm-title="Konfirmasi Publikasi Wilayah" data-confirm-button="Ya, Tampilkan Semua">@csrf
             <input type="hidden" name="action" value="show_all">
             <button type="submit" class="atlas-button">Tampilkan semua</button>
         </form>
-        <form method="POST" action="{{ route('admin.regencies.bulk-visibility') }}" onsubmit="return confirm('Sembunyikan semua wilayah dari peta publik?');">@csrf
+        <form method="POST" action="{{ route('admin.regencies.bulk-visibility') }}" data-confirm="Sembunyikan semua wilayah kabupaten dari peta publik WebGIS?" data-confirm-title="Konfirmasi Sembunyikan Wilayah" data-confirm-type="warning" data-confirm-button="Ya, Sembunyikan Semua">@csrf
             <input type="hidden" name="action" value="hide_all">
             <button type="submit" class="atlas-button">Sembunyikan semua</button>
         </form>
@@ -40,7 +40,7 @@
                         <button type="button" class="atlas-button regency-color-save" data-id="{{ $reg->id }}">Simpan warna</button>
                     </div>
                 </td>
-                <td><a class="atlas-link" href="{{ route('home') }}?regency={{ $reg->id }}" target="_blank" rel="noopener">Buka di peta ↗</a></td>
+                <td><a class="atlas-link" href="{{ route('peta') }}?regency={{ $reg->id }}" target="_blank" rel="noopener">Buka di peta ↗</a></td>
             </tr>
         @endforeach
     </tbody></table></div>

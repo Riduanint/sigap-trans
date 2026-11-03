@@ -11,19 +11,28 @@ use Illuminate\View\View;
 class OperatorUptController extends Controller
 {
     /**
-     * Tampilkan data inventarisasi seluruh 124 UPT di Kalimantan Selatan
-     * Operator memiliki wewenang lintas 9 kabupaten dengan filter dinamis
+     * Tampilkan data inventarisasi UPT wilayah publikasi yang diaktifkan oleh Super Admin
      */
     public function index(Request $request): View
     {
-        $regencies = Regency::withCount('uptLocations')->orderBy('id')->get();
+        $regencies = Regency::where('is_visible', true)
+            ->withCount('uptLocations')
+            ->orderBy('id')
+            ->get();
+        $visibleRegencyIds = $regencies->pluck('id')->all();
 
-        $query = UptLocation::with('regency')->withCount('familyCards');
+        $query = UptLocation::whereHas('regency', fn($q) => $q->where('is_visible', true))
+            ->with('regency')
+            ->withCount('familyCards');
 
-        // Filter Kabupaten (Semua atau Spesifik)
-        $selectedRegencyId = $request->get('regency_id', 'all');
-        if ($selectedRegencyId !== 'all' && is_numeric($selectedRegencyId)) {
-            $query->where('regency_id', (int) $selectedRegencyId);
+        // Filter Kabupaten (Hanya kabupaten yang diaktifkan)
+        $rawRegencyId = $request->get('regency_id', 'all');
+        $selectedRegencyId = ($rawRegencyId !== 'all' && in_array((int) $rawRegencyId, $visibleRegencyIds, true))
+            ? (int) $rawRegencyId
+            : 'all';
+
+        if ($selectedRegencyId !== 'all') {
+            $query->where('regency_id', $selectedRegencyId);
         }
 
         // Filter Status Legalitas Lahan
@@ -56,10 +65,10 @@ class OperatorUptController extends Controller
 
         $uptLocations = $query->paginate($perPage)->withQueryString();
 
-        // Statistik Keseluruhan (atau terfilter jika kabupaten dipilih)
-        $baseStatQuery = UptLocation::query();
-        if ($selectedRegencyId !== 'all' && is_numeric($selectedRegencyId)) {
-            $baseStatQuery->where('regency_id', (int) $selectedRegencyId);
+        // Statistik Keseluruhan (dibatasi wilayah aktif atau terfilter jika kabupaten dipilih)
+        $baseStatQuery = UptLocation::whereHas('regency', fn($q) => $q->where('is_visible', true));
+        if ($selectedRegencyId !== 'all') {
+            $baseStatQuery->where('regency_id', $selectedRegencyId);
         }
 
         $stats = [
@@ -71,8 +80,8 @@ class OperatorUptController extends Controller
             'critical_count' => (clone $baseStatQuery)->where('issue_status', 'critical')->count(),
         ];
 
-        $currentRegency = ($selectedRegencyId !== 'all' && is_numeric($selectedRegencyId))
-            ? $regencies->firstWhere('id', (int) $selectedRegencyId)
+        $currentRegency = ($selectedRegencyId !== 'all')
+            ? $regencies->firstWhere('id', $selectedRegencyId)
             : null;
 
         return view('operator.data_upt_wilayah.data_upt_wilayah', compact(
@@ -87,14 +96,16 @@ class OperatorUptController extends Controller
     }
 
     /**
-     * Halaman registri warga penuh (varian Atlas) untuk UPT wilayah.
+     * Halaman registri warga penuh (varian Atlas) untuk UPT wilayah aktif.
      * Delegasi ke FamilyCardManagementController@page — data, statistik,
      * dan pagination identik dengan halaman registri Super Admin.
      */
     public function registri(Request $request, int $id): \Illuminate\View\View
     {
-        // UPT harus ada; akses registri operator dibatasi peran oleh middleware route.
-        UptLocation::with('regency')->findOrFail($id);
+        // UPT harus berada dalam wilayah aktif; akses registri operator dibatasi peran oleh middleware route.
+        UptLocation::whereHas('regency', fn($q) => $q->where('is_visible', true))
+            ->with('regency')
+            ->findOrFail($id);
 
         return app(\App\Http\Controllers\Admin\FamilyCardManagementController::class)
             ->page($request, $id);

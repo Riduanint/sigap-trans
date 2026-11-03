@@ -8,7 +8,9 @@
     $pageName = match (true) {
         $isOperator && request()->routeIs('operator.dashboard') => 'Ringkasan operator',
         $isOperator && request()->routeIs('operator.upt.*', 'operator.upt.registri') => 'Data UPT wilayah',
-        $isOperator && request()->routeIs('operator.requests.create') => 'Ajukan draf usulan',
+        $isOperator && request()->routeIs('operator.requests.create-new-upt') => 'Usulkan UPT baru',
+        $isOperator && request()->routeIs('operator.requests.create') => 'Ajukan pemutakhiran',
+        $isOperator && request()->routeIs('operator.requests.edit') => 'Edit draf usulan',
         $isOperator && request()->routeIs('operator.requests.show') => 'Rincian draf usulan',
         $isOperator && request()->routeIs('operator.requests.*') => 'Draf usulan',
         $isOperator && request()->routeIs('operator.documents.*') => 'Arsip dokumen',
@@ -19,6 +21,10 @@
         request()->routeIs('admin.upt.create') => 'Tambah UPT',
         request()->routeIs('admin.upt.edit') => 'Perbarui data UPT',
         request()->routeIs('admin.upt.show') => 'Profil UPT',
+        request()->routeIs('admin.skp.create') => 'Tambah Kawasan SKP',
+        request()->routeIs('admin.skp.edit') => 'Perbarui Kawasan SKP',
+        request()->routeIs('admin.skp.show') => 'Profil Kawasan SKP',
+        request()->routeIs('admin.skp.*') => 'Kawasan & SKP',
         $populationPage => 'Kependudukan',
         request()->routeIs('admin.sertifikat-tanah.*') => 'Pertanahan',
         request()->routeIs('admin.documents.*') => 'Arsip dokumen',
@@ -67,6 +73,7 @@
             <x-admin.nav-item route="admin.verification.index" :parameters="['status' => 'pending']" label="Verifikasi" icon="check" :badge="$pendingCount" :active="request()->routeIs('admin.verification.*')" />
             <p class="atlas-nav-heading">Data wilayah</p>
             <x-admin.nav-item route="admin.upt.index" label="Data UPT" icon="database" :active="request()->routeIs('admin.upt.*')" />
+            <x-admin.nav-item route="admin.skp.index" label="Kawasan & SKP" icon="map" :active="request()->routeIs('admin.skp.*')" />
             <x-admin.nav-item route="admin.placements.index" label="Kependudukan" icon="users" :active="$populationPage" />
             <x-admin.nav-item route="admin.sertifikat-tanah.index" label="Pertanahan" icon="land" :active="request()->routeIs('admin.sertifikat-tanah.*')" />
             <x-admin.nav-item route="admin.documents.index" label="Arsip dokumen" icon="folder" :active="request()->routeIs('admin.documents.*')" />
@@ -84,9 +91,9 @@
             @endif
         </nav>
         <div class="atlas-sidebar-bottom">
-            <a class="atlas-nav-item" href="{{ route('home') }}" target="_blank" rel="noopener" title="Buka peta publik"><x-admin.icon name="external" /><span class="atlas-nav-label">Buka peta publik</span></a>
+            <a class="atlas-nav-item" href="{{ route('peta') }}" target="_blank" rel="noopener" title="Buka peta publik"><x-admin.icon name="external" /><span class="atlas-nav-label">Buka peta publik</span></a>
             <details class="atlas-account" @click.outside="$el.removeAttribute('open')" @keydown.escape.stop="$el.removeAttribute('open')">
-                <summary title="Menu akun"><span class="atlas-avatar">{{ mb_strtoupper(mb_substr($user?->name ?? 'A', 0, 1)) }}</span><span class="atlas-nav-label"><strong>{{ $user?->name ?? 'Pengguna' }}</strong><small>{{ match($user?->role) { 'super_admin' => 'Super Admin · Provinsi', 'operator_kabupaten' => 'Operator · ' . ($user?->regency?->name ?? 'Wilayah'), 'eksekutif' => 'Eksekutif', 'mitra_bpn' => 'Mitra BPN', default => 'Aparatur' } }}</small></span></summary>
+                <summary title="Menu akun"><span class="atlas-avatar">{{ mb_strtoupper(mb_substr($user?->name ?? 'A', 0, 1)) }}</span><span class="atlas-nav-label"><strong>{{ $user?->name ?? 'Pengguna' }}</strong><small>{{ match($user?->role) { 'super_admin' => 'Super Admin · Provinsi', 'operator_kabupaten' => 'Operator · ' . ($user?->regency?->name ?? 'Wilayah'), 'eksekutif' => 'Eksekutif', default => 'Aparatur' } }}</small></span></summary>
                 <div class="atlas-account-menu"><a href="{{ route('profile.edit') }}">Profil & kata sandi</a><form method="POST" action="{{ route('logout') }}">@csrf<button type="submit"><x-admin.icon name="logout" /> Keluar</button></form></div>
             </details>
         </div>
@@ -118,6 +125,7 @@
         </main>
         <footer class="atlas-footer"><span>SIGAP-TRANS KALSEL</span><span>Data wilayah · Administrasi · Arsip</span></footer>
     </div>
+    <x-admin.confirm-dialog />
     @stack('scripts')
 </body>
 </html>

@@ -2,14 +2,15 @@
 
 @section('atlas_subtitle', 'Pantau status verifikasi dan catatan evaluasi dari Super Admin Provinsi. Data diterapkan ke master setelah disetujui.')
 @section('atlas_actions')
-    <a class="atlas-button atlas-button--primary" href="{{ route('operator.requests.create') }}"><x-admin.icon name="plus" /> Ajukan draf usulan</a>
+    <a class="atlas-button" href="{{ route('operator.requests.create-new-upt') }}"><x-admin.icon name="plus" /> Usulkan UPT baru</a>
+    <a class="atlas-button atlas-button--primary" href="{{ route('operator.requests.create') }}"><x-admin.icon name="check" /> Ajukan pemutakhiran</a>
 @endsection
 
 @section('content')
 @php
     $statusTabs = [
         'all' => 'Semua usulan',
-        'pending' => 'Menunggu verifikasi',
+        'pending' => 'Diproses',
         'approved' => 'Disetujui',
         'rejected' => 'Ditolak',
     ];
@@ -40,7 +41,6 @@
                 </div>
             @endif
             @if($activeStatus !== 'all')<input type="hidden" name="status" value="{{ $activeStatus }}">@endif
-            <button class="atlas-button atlas-button--primary">Terapkan</button>
         </div>
     </form>
     <div class="atlas-panel-heading">
@@ -57,7 +57,7 @@
                     <th scope="col">Status</th>
                     <th scope="col">Catatan verifikator</th>
                     <th scope="col">Diajukan</th>
-                    <th scope="col"><span class="sr-only">Tindakan</span></th>
+                    <th scope="col" style="text-align: center; width: 110px;">AKSI</th>
                 </tr>
             </thead>
             <tbody>
@@ -71,11 +71,18 @@
                                     <strong>{{ $upt->upt_name }}</strong>
                                     @if($upt->current_village_name)<span class="atlas-muted">Kini: {{ $upt->current_village_name }}</span>@endif
                                 </div>
+                            @elseif($req->request_type === 'CREATE_UPT')
+                                <div class="atlas-identity">
+                                    <span class="atlas-code" style="color: #107C41; font-weight: 700;">+ USULAN UPT BARU · {{ $req->proposed_payload['regency_name'] ?? 'Wilayah' }}</span>
+                                    <strong style="color: #107C41;">{{ $req->proposed_payload['upt_name'] ?? 'UPT Baru' }}</strong>
+                                    <span class="atlas-muted">Desa: {{ $req->proposed_payload['current_village_name'] ?? 'Belum ditentukan' }}</span>
+                                </div>
                             @else
                                 <span class="atlas-muted">UPT tidak ditemukan</span>
                             @endif
                         </td>
                         <td>{{ match ($req->request_type) {
+                            'CREATE_UPT' => 'Registrasi UPT baru',
                             'REGISTRY_SYNC' => 'Buku registri warga',
                             'DATA_UPDATE' => 'Data lapangan',
                             'LEGAL_ISSUE' => 'Masalah lahan',
@@ -85,7 +92,38 @@
                         <td><x-admin.status :status="$req->status" /></td>
                         <td class="atlas-reading" style="font-size: 13px;">{{ $req->reviewer_note ? \Illuminate\Support\Str::limit($req->reviewer_note, 80) : '—' }}</td>
                         <td class="atlas-muted" style="white-space: nowrap;">{{ $req->created_at->format('d M Y') }}<br>{{ $req->created_at->format('H:i') }} WITA</td>
-                        <td><a class="atlas-link" href="{{ route('operator.requests.show', $req->id) }}">Detail</a></td>
+                        <td style="text-align: center;">
+                            <div class="atlas-actions-cell" style="justify-content: center; gap: 6px;">
+                                <a href="{{ route('operator.requests.show', $req->id) }}" 
+                                   class="atlas-action-icon atlas-action-icon--detail" 
+                                   title="Lihat Detail Usulan" 
+                                   aria-label="Lihat Detail">
+                                    <x-admin.icon name="eye" />
+                                </a>
+
+                                <a href="{{ route('operator.requests.edit', $req->id) }}" 
+                                   class="atlas-action-icon atlas-action-icon--edit" 
+                                   title="Edit Usulan" 
+                                   aria-label="Edit Usulan">
+                                    <x-admin.icon name="edit" />
+                                </a>
+
+                                <form action="{{ route('operator.requests.destroy', $req->id) }}" method="POST" class="inline"
+                                      data-confirm="Hapus usulan ini secara permanen?"
+                                      data-confirm-title="Konfirmasi Hapus Usulan"
+                                      data-confirm-type="danger"
+                                      data-confirm-button="Ya, Hapus">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" 
+                                            class="atlas-action-icon atlas-action-icon--delete" 
+                                            title="Hapus Usulan" 
+                                            aria-label="Hapus Usulan">
+                                        <x-admin.icon name="trash" />
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
                     </tr>
                 @empty
                     <tr>

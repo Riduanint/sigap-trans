@@ -12,7 +12,7 @@
     </div>
     <span class="atlas-status atlas-status--{{ $user->is_active ? 'clean' : 'neutral' }}"><span aria-hidden="true"></span>{{ $user->is_active ? 'Aktif' : 'Nonaktif' }}</span>
 </section>
-<form method="POST" action="{{ route('admin.users.update', $user->id) }}" class="atlas-stack">
+<form method="POST" action="{{ route('admin.users.update', $user->id) }}" class="atlas-stack" data-confirm="Simpan seluruh perubahan pada akun pengguna ini?" data-confirm-title="Konfirmasi Perubahan Akun" data-confirm-type="warning" data-confirm-button="Ya, Simpan Perubahan">
     @csrf
     @method('PUT')
     @include('admin.manajemen_pengguna.partials.user-form', ['user' => $user])

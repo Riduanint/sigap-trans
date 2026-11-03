@@ -11,18 +11,23 @@ use App\Http\Controllers\Admin\LandCertificateController;
 use App\Http\Controllers\Admin\PlacementManagementController;
 use App\Http\Controllers\Admin\RegencyController;
 use App\Http\Controllers\Admin\ReportController;
+use App\Http\Controllers\Admin\SkpManagementController;
 use App\Http\Controllers\Admin\UptManagementController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\VerificationController;
 use App\Http\Controllers\Operator\OperatorChangeRequestController;
 use App\Http\Controllers\Operator\OperatorDashboardController;
 use App\Http\Controllers\Operator\OperatorUptController;
+use App\Http\Controllers\LandingController;
 use App\Http\Controllers\ProfileController;
 use App\Models\Regency;
 use Illuminate\Support\Facades\Route;
 
-// Beranda: Portal Peta WebGIS Interaktif
-Route::get('/', function () {
+// Beranda: Landing Page Publik
+Route::get('/', [LandingController::class, 'index'])->name('home');
+
+// Portal Peta WebGIS Interaktif
+Route::get('/peta', function () {
     $query = Regency::query();
     if (request()->filled('upt_id')) {
         $targetUpt = \App\Models\UptLocation::find(request('upt_id'));
@@ -38,7 +43,7 @@ Route::get('/', function () {
     }
     $visibleRegencies = $query->withCount('uptLocations')->orderBy('id')->get();
     return view('webgis.index', compact('visibleRegencies'));
-})->name('home');
+})->name('peta');
 
 // Redirect Dashboard Berdasarkan Peran (Konsolidasi 2 Peran Utama)
 Route::get('/dashboard', function () {
@@ -53,8 +58,8 @@ Route::get('/dashboard', function () {
     };
 })->middleware(['auth'])->name('dashboard');
 
-// 1. MODUL RUANG KENDALI SUPER ADMIN PROVINSI (TERINTEGRASI EKSEKUTIF & MITRA BPN)
-Route::middleware(['auth', 'role:super_admin,eksekutif,mitra_bpn'])->prefix('admin')->name('admin.')->group(function () {
+// 1. MODUL RUANG KENDALI SUPER ADMIN PROVINSI (TERINTEGRASI EKSEKUTIF)
+Route::middleware(['auth', 'role:super_admin,eksekutif'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/dashboard/pdf', [DashboardController::class, 'exportPdf'])->name('dashboard.pdf');
 
@@ -62,7 +67,7 @@ Route::middleware(['auth', 'role:super_admin,eksekutif,mitra_bpn'])->prefix('adm
     Route::get('/analitik', [AnalyticsController::class, 'index'])->name('analitik.index');
     Route::get('/analitik/pdf', [AnalyticsController::class, 'exportPdf'])->name('analitik.pdf');
 
-    // Monitoring Sertipikasi Tanah (Integrasi Mitra BPN)
+    // Monitoring Sertipikasi Tanah
     Route::get('/sertifikat-tanah', [LandCertificateController::class, 'index'])->name('sertifikat-tanah.index');
     Route::match(['put', 'patch'], '/sertifikat-tanah/{id}', [LandCertificateController::class, 'update'])->name('sertifikat-tanah.update')->whereNumber('id');
     Route::get('/sertifikat-tanah/export', [LandCertificateController::class, 'export'])->name('sertifikat-tanah.export');
@@ -76,16 +81,33 @@ Route::middleware(['auth', 'role:super_admin,eksekutif,mitra_bpn'])->prefix('adm
     Route::get('/upt/{id}', [UptManagementController::class, 'show'])->name('upt.show')->whereNumber('id');
     Route::get('/upt/{id}/edit', [UptManagementController::class, 'edit'])->name('upt.edit')->whereNumber('id');
     Route::put('/upt/{id}', [UptManagementController::class, 'update'])->name('upt.update')->whereNumber('id');
+    Route::delete('/upt/{id}', [UptManagementController::class, 'destroy'])->name('upt.destroy')->whereNumber('id');
     Route::get('/upt/{id}/registri', [FamilyCardManagementController::class, 'page'])->name('upt.registri')->whereNumber('id');
+
+    // Master Kawasan Transmigrasi & SKP
+    Route::get('/skp', [SkpManagementController::class, 'index'])->name('skp.index');
+    Route::get('/skp/pdf', [SkpManagementController::class, 'exportPdf'])->name('skp.pdf');
+    Route::get('/skp/create', [SkpManagementController::class, 'create'])->name('skp.create');
+    Route::post('/skp', [SkpManagementController::class, 'store'])->name('skp.store');
+    Route::get('/skp/{id}', [SkpManagementController::class, 'show'])->name('skp.show')->whereNumber('id');
+    Route::get('/skp/{id}/edit', [SkpManagementController::class, 'edit'])->name('skp.edit')->whereNumber('id');
+    Route::put('/skp/{id}', [SkpManagementController::class, 'update'])->name('skp.update')->whereNumber('id');
+    Route::delete('/skp/{id}', [SkpManagementController::class, 'destroy'])->name('skp.destroy')->whereNumber('id');
+    Route::get('/skp/villages/{id}', [SkpManagementController::class, 'villageDetail'])->name('skp.village.detail')->whereNumber('id');
+    Route::post('/skp/{skpId}/villages', [SkpManagementController::class, 'storeVillage'])->name('skp.village.store')->whereNumber('skpId');
+    Route::put('/skp/villages/{id}', [SkpManagementController::class, 'updateVillage'])->name('skp.village.update')->whereNumber('id');
+    Route::delete('/skp/villages/{id}', [SkpManagementController::class, 'destroyVillage'])->name('skp.village.destroy')->whereNumber('id');
 
     // Menu Kelola Data: Penempatan Awal
     Route::get('/placements', [PlacementManagementController::class, 'index'])->name('placements.index');
+    Route::post('/placements', [PlacementManagementController::class, 'store'])->name('placements.store');
     Route::put('/placements/{id}', [PlacementManagementController::class, 'update'])->name('placements.update')->whereNumber('id');
     Route::get('/placements/export', [PlacementManagementController::class, 'export'])->name('placements.export');
     Route::get('/placements/pdf', [PlacementManagementController::class, 'exportPdf'])->name('placements.pdf');
 
     // Menu Kelola Data: Serah Terima Pemda
     Route::get('/handovers', [HandoverManagementController::class, 'index'])->name('handovers.index');
+    Route::post('/handovers', [HandoverManagementController::class, 'store'])->name('handovers.store');
     Route::put('/handovers/{id}', [HandoverManagementController::class, 'update'])->name('handovers.update')->whereNumber('id');
     Route::get('/handovers/export', [HandoverManagementController::class, 'export'])->name('handovers.export');
     Route::get('/handovers/pdf', [HandoverManagementController::class, 'exportPdf'])->name('handovers.pdf');
@@ -132,7 +154,7 @@ Route::middleware(['auth', 'role:super_admin,eksekutif,mitra_bpn'])->prefix('adm
 });
 
 // Modul Registri Warga (Opsi C Hibrida) - Akses Bersama Super Admin & Operator Wilayah
-Route::middleware(['auth', 'role:super_admin,eksekutif,mitra_bpn,operator_kabupaten'])->prefix('admin/family-cards')->name('admin.family-cards.')->group(function () {
+Route::middleware(['auth', 'role:super_admin,eksekutif,operator_kabupaten'])->prefix('admin/family-cards')->name('admin.family-cards.')->group(function () {
     Route::get('/upt/{uptId}', [FamilyCardManagementController::class, 'list'])->name('list')->whereNumber('uptId');
     Route::post('/upt/{uptId}', [FamilyCardManagementController::class, 'store'])->name('store')->whereNumber('uptId');
     Route::match(['put', 'post'], '/{id}', [FamilyCardManagementController::class, 'update'])->name('update')->whereNumber('id');
@@ -152,8 +174,12 @@ Route::middleware(['auth', 'role:operator_kabupaten'])->prefix('operator')->name
     Route::get('/upt/{id}/registri', [OperatorUptController::class, 'registri'])->name('upt.registri')->whereNumber('id');
     Route::get('/requests', [OperatorChangeRequestController::class, 'index'])->name('requests.index');
     Route::get('/requests/create', [OperatorChangeRequestController::class, 'create'])->name('requests.create');
+    Route::get('/requests/create-new-upt', [OperatorChangeRequestController::class, 'createNewUpt'])->name('requests.create-new-upt');
     Route::post('/requests', [OperatorChangeRequestController::class, 'store'])->name('requests.store');
     Route::get('/requests/{id}', [OperatorChangeRequestController::class, 'show'])->name('requests.show')->whereNumber('id');
+    Route::get('/requests/{id}/edit', [OperatorChangeRequestController::class, 'edit'])->name('requests.edit')->whereNumber('id');
+    Route::match(['put', 'patch'], '/requests/{id}', [OperatorChangeRequestController::class, 'update'])->name('requests.update')->whereNumber('id');
+    Route::delete('/requests/{id}', [OperatorChangeRequestController::class, 'destroy'])->name('requests.destroy')->whereNumber('id');
     Route::get('/documents', [DocumentRepositoryController::class, 'index'])->name('documents.index');
     Route::get('/documents/{id}/download', [DocumentRepositoryController::class, 'download'])->name('documents.download')->whereNumber('id');
 });

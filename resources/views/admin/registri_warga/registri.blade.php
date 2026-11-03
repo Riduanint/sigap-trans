@@ -36,7 +36,6 @@
             <div class="atlas-field"><label for="rg-type">Jenis transmigran</label><select id="rg-type" name="transmigrant_type"><option value="all">Semua jenis</option><option value="TPA" @selected(request('transmigrant_type') === 'TPA')>TPA — penduduk asal</option><option value="TPS" @selected(request('transmigrant_type') === 'TPS')>TPS — penduduk setempat</option></select></div>
             <div class="atlas-field"><label for="rg-shm">Status SHM</label><select id="rg-shm" name="land_certificate_status"><option value="all">Semua status</option>@foreach(['Sudah SHM', 'Proses SHM', 'Belum SHM'] as $shmOption)<option value="{{ $shmOption }}" @selected(request('land_certificate_status') === $shmOption)>{{ $shmOption }}</option>@endforeach</select></div>
             <input type="hidden" name="stage" value="{{ $stage }}">
-            <button class="atlas-button atlas-button--primary">Terapkan</button>
         </div>
     </form>
     @php $activeFilters = collect(request()->only('search', 'transmigrant_type', 'land_certificate_status'))->filter(fn ($value) => filled($value) && $value !== 'all'); @endphp

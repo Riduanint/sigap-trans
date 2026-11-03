@@ -1,9 +1,14 @@
 @extends('layouts.admin')
 
-@section('title', 'Diff Checker - Verifikasi Draf #' . $changeRequest->id)
-@section('header_title', 'Diff Checker & Verifikasi Draf Usulan')
-@section('header_subtitle', 'Bandingkan data aktif dengan data usulan baru dari Operator Kabupaten sebelum melakukan approval')
-@section('atlas_subtitle', 'Bandingkan usulan operator dengan data UPT saat ini, lalu tentukan keputusan.')
+@php
+    $isCreateUpt = ($changeRequest->request_type === 'CREATE_UPT');
+    $targetName = $upt ? $upt->upt_name : ($payload['upt_name'] ?? 'Usulan Registrasi UPT Baru');
+@endphp
+
+@section('title', 'Verifikasi Draf #' . $changeRequest->id . ' - ' . $targetName)
+@section('header_title', $isCreateUpt ? 'Verifikasi Usulan Registrasi UPT Baru' : 'Diff Checker & Verifikasi Draf Usulan')
+@section('header_subtitle', $isCreateUpt ? 'Tinjau kelengkapan berkas dan atribut usulan pembentukan UPT baru sebelum didaftarkan ke Master Data UPT' : 'Bandingkan data aktif dengan data usulan baru dari Operator Kabupaten sebelum melakukan approval')
+@section('atlas_subtitle', $isCreateUpt ? 'Tinjau usulan pembentukan UPT baru dari operator kabupaten, lalu tentukan keputusan pengesahan.' : 'Bandingkan usulan operator dengan data UPT saat ini, lalu tentukan keputusan.')
 
 @section('content')
 <div class="max-w-6xl mx-auto space-y-6">
@@ -27,10 +32,22 @@
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4 border-b border-[#D4DEE7] pb-5">
             <div>
                 <span class="atlas-code uppercase block">Unit UPT sasaran</span>
-                <span class="text-[15px] font-semibold text-[#243746]">
-                    UPT-{{ str_pad($upt->upt_number, 3, '0', STR_PAD_LEFT) }} · {{ $upt->upt_name }}
-                </span>
-                <span class="block text-[13px] text-[#5A6E7D]">Kabupaten {{ $upt->regency->name ?? '-' }}</span>
+                @if($upt)
+                    <span class="text-[15px] font-semibold text-[#243746]">
+                        UPT-{{ str_pad($upt->upt_number, 3, '0', STR_PAD_LEFT) }} · {{ $upt->upt_name }}
+                    </span>
+                    <span class="block text-[13px] text-[#5A6E7D]">Kabupaten {{ $upt->regency->name ?? '-' }}</span>
+                @elseif($isCreateUpt)
+                    <span class="text-[15px] font-semibold text-[#243746]">
+                        {{ $payload['upt_name'] ?? 'Pendaftaran UPT Baru' }}
+                    </span>
+                    <span class="block text-[13px] text-[#5A6E7D]">
+                        <span class="atlas-status atlas-status--info" style="font-size: 0.68rem; padding: 1px 6px;">+ USULAN REGISTRASI BARU</span>
+                        · Kab. {{ $proposedRegency->name ?? '-' }}
+                    </span>
+                @else
+                    <span class="text-[15px] font-semibold text-[#243746]">(Tidak ada UPT sasaran)</span>
+                @endif
             </div>
             <div>
                 <span class="atlas-code uppercase block">Operator pengaju</span>
@@ -44,7 +61,9 @@
             </div>
             <div>
                 <span class="atlas-code uppercase block">Kategori usulan</span>
-                @if($changeRequest->request_type === 'REGISTRY_SYNC')
+                @if($isCreateUpt)
+                    <span class="atlas-status atlas-status--info mt-0.5"><span aria-hidden="true"></span>Pendaftaran UPT baru</span>
+                @elseif($changeRequest->request_type === 'REGISTRY_SYNC')
                     <span class="atlas-status atlas-status--warning mt-0.5"><span aria-hidden="true"></span>Buku registri warga</span>
                 @else
                     <span class="atlas-status mt-0.5"><span aria-hidden="true"></span>{{ $changeRequest->request_type === 'DATA_UPDATE' ? 'Data lapangan' : ($changeRequest->request_type === 'LEGAL_ISSUE' ? 'Masalah lahan' : 'Berkas BAST baru') }}</span>
@@ -63,7 +82,139 @@
         </div>
     </div>
 
-    @if($changeRequest->request_type === 'REGISTRY_SYNC' && $registrySummary)
+    @if($isCreateUpt)
+        <!-- 2. TINJAUAN USULAN REGISTRASI UPT BARU -->
+        <div class="atlas-panel">
+            <div class="atlas-panel-heading">
+                <div>
+                    <h3>Atribut data calon UPT baru</h3>
+                    <p style="font-size: 13px; color: var(--atlas-muted); margin: 2px 0 0;">
+                        Seluruh atribut di bawah ini akan didaftarkan ke Master Data UPT Transmigrasi Provinsi Sulawesi Tengah jika disetujui.
+                    </p>
+                </div>
+                <span class="atlas-status atlas-status--info"><span aria-hidden="true"></span>Calon master UPT</span>
+            </div>
+
+            <div class="p-6 bg-[#F3F6F8] border-b border-[#D4DEE7]">
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    <div class="p-3.5 rounded bg-white border border-[#D4DEE7]">
+                        <span class="atlas-code uppercase block">KK penempatan</span>
+                        <span class="text-2xl font-semibold text-[#243746] tabular-nums" style="font-family: 'Barlow Semi Condensed', sans-serif;">{{ number_format($payload['placement_kk'] ?? 0, 0, ',', '.') }}</span>
+                        <span class="text-xs text-[#5A6E7D]"> KK</span>
+                    </div>
+                    <div class="p-3.5 rounded bg-white border border-[#D4DEE7]">
+                        <span class="atlas-code uppercase block">Jiwa penempatan</span>
+                        <span class="text-2xl font-semibold text-[#243746] tabular-nums" style="font-family: 'Barlow Semi Condensed', sans-serif;">{{ number_format($payload['placement_population'] ?? 0, 0, ',', '.') }}</span>
+                        <span class="text-xs text-[#5A6E7D]"> Jiwa</span>
+                    </div>
+                    <div class="p-3.5 rounded bg-white border border-[#D4DEE7]">
+                        <span class="atlas-code uppercase block">KK serah terima</span>
+                        <span class="text-2xl font-semibold text-[#243746] tabular-nums" style="font-family: 'Barlow Semi Condensed', sans-serif;">{{ number_format($payload['handover_kk'] ?? 0, 0, ',', '.') }}</span>
+                        <span class="text-xs text-[#5A6E7D]"> KK</span>
+                    </div>
+                    <div class="p-3.5 rounded bg-white border border-[#D4DEE7]">
+                        <span class="atlas-code uppercase block">Jiwa serah terima</span>
+                        <span class="text-2xl font-semibold text-[#243746] tabular-nums" style="font-family: 'Barlow Semi Condensed', sans-serif;">{{ number_format($payload['handover_population'] ?? 0, 0, ',', '.') }}</span>
+                        <span class="text-xs text-[#5A6E7D]"> Jiwa</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs">
+                    <thead>
+                        <tr class="bg-[#EDF2F6] text-[#5A6E7D] font-semibold text-[10px] uppercase tracking-wider border-b border-[#D4DEE7]">
+                            <th class="px-5 py-3 w-1/3">Parameter data UPT</th>
+                            <th class="px-5 py-3">Nilai yang diusulkan</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-[#E5EBF0] text-xs">
+                        <tr class="hover:bg-[#F8FAFC] transition">
+                            <td class="px-5 py-3.5 font-semibold text-[#243746]">Nomor Registrasi UPT Rekomendasi</td>
+                            <td class="px-5 py-3.5">
+                                <span class="atlas-code font-bold text-[13px] text-[#2457A7]">
+                                    UPT-{{ str_pad($payload['upt_number'] ?? ((\App\Models\UptLocation::max('upt_number') ?? 0) + 1), 3, '0', STR_PAD_LEFT) }}
+                                </span>
+                                <span class="text-[11px] text-[#5A6E7D] ml-2">(Nomor urut resmi berikutnya pada master data)</span>
+                            </td>
+                        </tr>
+                        <tr class="hover:bg-[#F8FAFC] transition">
+                            <td class="px-5 py-3.5 font-semibold text-[#243746]">Nama Satuan Pemukiman (UPT)</td>
+                            <td class="px-5 py-3.5 font-semibold text-[14px] text-[#243746]">{{ $payload['upt_name'] ?? '-' }}</td>
+                        </tr>
+                        <tr class="hover:bg-[#F8FAFC] transition">
+                            <td class="px-5 py-3.5 font-semibold text-[#243746]">Kabupaten Wilayah Kerja</td>
+                            <td class="px-5 py-3.5">{{ $proposedRegency->name ?? '-' }}</td>
+                        </tr>
+                        <tr class="hover:bg-[#F8FAFC] transition">
+                            <td class="px-5 py-3.5 font-semibold text-[#243746]">Kaitan Kawasan SKP</td>
+                            <td class="px-5 py-3.5 text-[#5A6E7D] italic">
+                                Ditetapkan oleh Super Admin pada formulir keputusan di bawah
+                            </td>
+                        </tr>
+                        <tr class="hover:bg-[#F8FAFC] transition">
+                            <td class="px-5 py-3.5 font-semibold text-[#243746]">Nama Desa Definitif Sekarang</td>
+                            <td class="px-5 py-3.5">{{ $payload['current_village_name'] ?? '-' }}</td>
+                        </tr>
+                        <tr class="hover:bg-[#F8FAFC] transition">
+                            <td class="px-5 py-3.5 font-semibold text-[#243746]">Pola Usaha Budidaya</td>
+                            <td class="px-5 py-3.5">
+                                <span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-[#DAE7F6] text-[#194482]">
+                                    {{ $payload['business_pattern'] ?? 'TPLK' }}
+                                </span>
+                            </td>
+                        </tr>
+                        <tr class="hover:bg-[#F8FAFC] transition">
+                            <td class="px-5 py-3.5 font-semibold text-[#243746]">Tahun Penempatan &amp; Penyerahan</td>
+                            <td class="px-5 py-3.5">
+                                Penempatan: <strong class="tabular-nums">{{ $payload['placement_year'] ?? '-' }}</strong> · 
+                                Serah Terima: <strong class="tabular-nums">{{ $payload['handover_year'] ?? '-' }}</strong>
+                            </td>
+                        </tr>
+                        <tr class="hover:bg-[#F8FAFC] transition">
+                            <td class="px-5 py-3.5 font-semibold text-[#243746]">Status Legalitas Lahan</td>
+                            <td class="px-5 py-3.5">
+                                <span class="atlas-status atlas-status--{{ ['clean' => 'clean', 'warning' => 'warning', 'critical' => 'critical'][$payload['issue_status'] ?? 'clean'] ?? 'neutral' }}">
+                                    <span aria-hidden="true"></span>{{ $payload['issue_status'] ?? 'clean' }}
+                                </span>
+                                @if(!empty($payload['issue_note']))
+                                    <div class="text-[12px] text-[#5A6E7D] mt-1">{{ $payload['issue_note'] }}</div>
+                                @endif
+                            </td>
+                        </tr>
+                        <tr class="hover:bg-[#F8FAFC] transition">
+                            <td class="px-5 py-3.5 font-semibold text-[#243746]">Status Kepemilikan SHM</td>
+                            <td class="px-5 py-3.5">{{ $payload['shm_status'] ?? 'Belum SHM' }}</td>
+                        </tr>
+                        <tr class="hover:bg-[#F8FAFC] transition">
+                            <td class="px-5 py-3.5 font-semibold text-[#243746]">Koordinat Spasial Titik Peta</td>
+                            <td class="px-5 py-3.5">
+                                @if(!empty($payload['latitude']) && !empty($payload['longitude']))
+                                    <div class="flex items-center gap-2">
+                                        <code class="px-2 py-1 bg-[#EEF2F5] rounded text-xs font-mono tabular-nums text-[#243746]">
+                                            Lat: {{ $payload['latitude'] }}, Lng: {{ $payload['longitude'] }}
+                                        </code>
+                                        <a href="https://www.google.com/maps?q={{ $payload['latitude'] }},{{ $payload['longitude'] }}"
+                                           target="_blank" rel="noopener"
+                                           class="atlas-link inline-flex items-center gap-1 text-[11px]">
+                                            <span>Lihat di Google Maps</span>
+                                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                                        </a>
+                                    </div>
+                                    <p class="text-[11px] text-[#287451] mt-1.5 font-medium">
+                                        ✓ Saat usulan disetujui, poligon geometri wilayah (buffer ~800m) dan titik koordinat spasial akan otomatis di-generate ke database WebGIS.
+                                    </p>
+                                @else
+                                    <span class="text-[#5A6E7D] italic">Koordinat belum dicantumkan</span>
+                                @endif
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    @elseif($changeRequest->request_type === 'REGISTRY_SYNC' && $registrySummary)
         <!-- 2. KOMPARASI BUKU REGISTRI WARGA (DIFF CHECKER REGISTRI) -->
         <div class="atlas-panel">
             <div class="atlas-panel-heading">
@@ -221,7 +372,7 @@
                     <tbody class="divide-y divide-[#E5EBF0] text-xs">
                         @foreach($comparisonFields as $fieldKey => $field)
                             @php
-                                $isDifferent = (trim((string)$field['current']) !== trim((string)$field['proposed']));
+                                $isDifferent = ($fieldKey !== 'skp_area' && trim((string)$field['current']) !== trim((string)$field['proposed']));
                             @endphp
                             <tr x-show="!onlyChanges || {{ $isDifferent ? 'true' : 'false' }}" class="{{ $isDifferent ? 'atlas-diff-changed bg-[#EDF3FB]/60' : 'hover:bg-[#F8FAFC]' }} transition">
                                 <!-- Kolom 1: Nama Field -->
@@ -238,6 +389,8 @@
                                 <td class="px-5 py-3.5 bg-[#F3F6F8] border-r border-[#D4DEE7] text-[#5A6E7D]">
                                     @if($fieldKey === 'issue_status')
                                         <span class="atlas-status atlas-status--{{ ['clean' => 'clean', 'warning' => 'warning', 'critical' => 'critical'][$field['current']] ?? 'neutral' }}"><span aria-hidden="true"></span>{{ $field['current'] ?: 'Belum tercatat' }}</span>
+                                    @elseif($fieldKey === 'skp_area')
+                                        <span class="font-medium text-[#243746]">{{ $field['current'] }}</span>
                                     @else
                                         <span>{{ $field['current'] === null || $field['current'] === '' ? 'Belum tercatat' : $field['current'] }}</span>
                                     @endif
@@ -247,6 +400,8 @@
                                 <td class="px-5 py-3.5 {{ $isDifferent ? 'bg-[#EDF3FB]' : '' }}">
                                     @if($fieldKey === 'issue_status')
                                         <span class="atlas-status atlas-status--{{ ['clean' => 'clean', 'warning' => 'warning', 'critical' => 'critical'][$field['proposed']] ?? 'neutral' }}"><span aria-hidden="true"></span>{{ $field['proposed'] ?: 'Belum tercatat' }}</span>
+                                    @elseif($fieldKey === 'skp_area')
+                                        <span class="text-[#5A6E7D] italic">{{ $field['proposed'] }}</span>
                                     @else
                                         <span class="{{ $isDifferent ? 'font-semibold text-[#243746]' : 'text-[#5A6E7D]' }}">
                                             {{ $field['proposed'] === null || $field['proposed'] === '' ? 'Dikosongkan' : $field['proposed'] }}
@@ -270,13 +425,13 @@
         </div>
     @endif
 
-    <!-- 3. LAMPIRAN BERKAS BAST (JIKA ADA) -->
+    <!-- 3. LAMPIRAN BERKAS (SK / BAST) JIKA ADA -->
     @if(isset($payload['attached_document']))
         @php $doc = $payload['attached_document']; @endphp
         <div class="atlas-panel p-6 space-y-3">
             <h3 class="text-[13px] font-semibold text-[#243746] uppercase tracking-wider flex items-center gap-2">
                 <svg class="w-4 h-4 text-[#2457A7]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path></svg>
-                <span>Lampiran berkas digital BAST yang diusulkan:</span>
+                <span>{{ $isCreateUpt ? 'Berkas digital SK pembentukan / penetapan UPT baru:' : 'Lampiran berkas digital BAST yang diusulkan:' }}</span>
             </h3>
 
             <div class="p-4 rounded-md bg-[#F3F6F8] border border-[#D4DEE7] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -285,7 +440,7 @@
                         PDF
                     </div>
                     <div>
-                        <div class="text-xs font-semibold text-[#243746]">{{ $doc['document_name'] ?? 'Berkas scan BAST' }}</div>
+                        <div class="text-xs font-semibold text-[#243746]">{{ $doc['document_name'] ?? 'Berkas dokumen' }}</div>
                         <div class="text-[11px] text-[#5A6E7D] tabular-nums">No. reg: {{ $doc['document_number'] ?? '-' }}</div>
                         <div class="text-[10px] text-[#5A6E7D] tabular-nums">Ukuran: {{ isset($doc['file_size_bytes']) ? round($doc['file_size_bytes']/1024, 1) . ' KB' : '-' }}</div>
                     </div>
@@ -298,7 +453,7 @@
                 </a>
             </div>
             <p class="text-[11px] text-[#5A6E7D] italic">
-                * Jika draf usulan disetujui, berkas ini akan otomatis didaftarkan ke <strong>Repositori E-Arsip BAST</strong> dinas.
+                * Jika disetujui, berkas ini akan otomatis didaftarkan ke <strong>Repositori E-Arsip Dokumen UPT</strong> dinas.
             </p>
         </div>
     @endif
@@ -311,21 +466,43 @@
                     Keputusan verifikasi Super Admin
                 </h3>
                 <p class="text-[13px] text-[#5A6E7D] mt-0.5">
-                    Tentukan persetujuan atau penolakan draf usulan ini. Seluruh aksi dicatat dalam log aktivitas.
+                    Tentukan persetujuan atau penolakan draf usulan ini. Seluruh aksi dicatat dalam log aktivitas forensik.
                 </p>
             </div>
 
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <!-- FORM SETUJUI (APPROVE) -->
-                <form action="{{ route('admin.verification.approve', $changeRequest->id) }}" method="POST" class="p-5 rounded-md bg-[#EDF6F0] border border-[#B7D9C6] space-y-4">
+                <form action="{{ route('admin.verification.approve', $changeRequest->id) }}" method="POST" class="p-5 rounded-md bg-[#EDF6F0] border border-[#B7D9C6] space-y-4" data-confirm="{{ $isCreateUpt ? 'Setujui pendaftaran UPT baru ini ke Master Data SIGAP-TRANS?' : 'Setujui draf usulan pembaruan UPT ini?' }}" data-confirm-title="Konfirmasi Persetujuan Usulan" data-confirm-type="clean" data-confirm-button="Ya, Setujui Usulan">
                     @csrf
                     <div>
                         <span class="text-[13px] font-semibold text-[#287451] block">
-                            Setujui perubahan
+                            {{ $isCreateUpt ? 'Setujui & Daftarkan ke Master Data UPT' : 'Setujui perubahan' }}
                         </span>
                         <p class="text-[12px] text-[#5A6E7D] mt-0.5">
-                            Data usulan akan langsung menimpa data master UPT dan dokumen pendukung didaftarkan ke e-arsip.
+                            @if($isCreateUpt)
+                                Unit UPT baru akan resmi terdaftar pada database, dialokasikan nomor registrasi, titik spasial dibuat, dan dokumen diarsipkan.
+                            @else
+                                Data usulan akan langsung menimpa data master UPT dan dokumen pendukung didaftarkan ke e-arsip.
+                            @endif
                         </p>
+                    </div>
+
+                    <div>
+                        <label for="skp_id" class="block text-xs font-semibold text-[#243746] mb-1">
+                            Kaitkan ke Kawasan SKP (Opsional)
+                        </label>
+                        <select name="skp_id" id="skp_id"
+                                class="w-full text-xs rounded border-[#D4DEE7] focus:border-[#2457A7] focus:ring focus:ring-[#2457A7]/20 text-[#243746] bg-white">
+                            <option value="">-- Tanpa Kawasan SKP (Mandiri) --</option>
+                            @foreach($skpAreas as $skp)
+                                <option value="{{ $skp->id }}" @selected(old('skp_id', $upt?->skp_id) == $skp->id)>
+                                    {{ $skp->skp_name }} · {{ $skp->kawasan_name }} (Kab. {{ $skp->regency?->name ?? 'Lintas Wilayah' }})
+                                </option>
+                            @endforeach
+                        </select>
+                        <small class="text-[11px] text-[#5A6E7D] block mt-1">
+                            Jika dipilih, UPT dan desa definitif ini otomatis terdaftar dalam rekapitulasi Satuan Kawasan Pengembangan (SKP) terkait.
+                        </small>
                     </div>
 
                     <div>
@@ -337,15 +514,15 @@
                                class="w-full text-xs rounded border-[#D4DEE7] focus:border-[#2457A7] focus:ring focus:ring-[#2457A7]/20 text-[#243746]">
                     </div>
 
-                    <button type="submit" onclick="return confirm('Apakah Anda yakin menyetujui draf usulan ini? Data master UPT akan otomatis dimutakhirkan.')"
+                    <button type="submit"
                             class="w-full py-2.5 px-4 rounded bg-[#287451] hover:bg-[#1f5a3e] text-white font-semibold text-xs transition flex items-center justify-center gap-2">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" d="M5 13l4 4L19 7"></path></svg>
-                        <span>Setujui perubahan</span>
+                        <span>{{ $isCreateUpt ? 'Setujui & Daftarkan UPT Baru' : 'Setujui perubahan' }}</span>
                     </button>
                 </form>
 
                 <!-- FORM TOLAK (REJECT) -->
-                <form action="{{ route('admin.verification.reject', $changeRequest->id) }}" method="POST" class="p-5 rounded-md bg-[#FBEDED] border border-[#E7BFBF] space-y-4">
+                <form action="{{ route('admin.verification.reject', $changeRequest->id) }}" method="POST" class="p-5 rounded-md bg-[#FBEDED] border border-[#E7BFBF] space-y-4" data-confirm="Tolak draf usulan ini dan kirimkan catatan evaluasi kepada operator pengusul?" data-confirm-title="Konfirmasi Penolakan Usulan" data-confirm-type="danger" data-confirm-button="Ya, Tolak Usulan">
                     @csrf
                     <div>
                         <span class="text-[13px] font-semibold text-[#B43D3D] block">
@@ -361,11 +538,11 @@
                             Alasan / catatan penolakan <span aria-hidden="true">*</span>
                         </label>
                         <textarea name="reviewer_note" id="reject_note" rows="2" required
-                                  placeholder="Contoh: Lampiran BAST belum ditandatangani bupati, mohon lengkapi kembali..."
+                                  placeholder="Contoh: Lampiran berkas SK belum lengkap, mohon cantumkan dokumen penetapan..."
                                   class="w-full text-xs rounded border-[#E7BFBF] focus:border-[#B43D3D] focus:ring focus:ring-[#B43D3D]/20 text-[#243746]">{{ old('reviewer_note') }}</textarea>
                     </div>
 
-                    <button type="submit" onclick="return confirm('Apakah Anda yakin menolak draf usulan ini?')"
+                    <button type="submit"
                             class="w-full py-2.5 px-4 rounded bg-[#B43D3D] hover:bg-[#98302f] text-white font-semibold text-xs transition flex items-center justify-center gap-2">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" d="M6 18L18 6M6 6l12 12"></path></svg>
                         <span>Tolak usulan</span>
@@ -385,6 +562,9 @@
                 </div>
                 <div>Verifikator: {{ $changeRequest->reviewer->name ?? 'Super Admin' }} ({{ $changeRequest->reviewer->email ?? '' }})</div>
                 <div>Waktu tindakan: {{ $changeRequest->reviewed_at?->format('d F Y, H:i') }} WITA</div>
+                @if($upt?->skpArea)
+                    <div>Kawasan SKP: <strong>{{ $upt->skpArea->skp_name }} ({{ $upt->skpArea->kawasan_name }})</strong></div>
+                @endif
                 <div class="mt-2 pt-2 border-t {{ $changeRequest->status === 'approved' ? 'border-[#B7D9C6]' : 'border-[#E7BFBF]' }}">
                     <strong>Catatan reviewer:</strong> {{ $changeRequest->reviewer_note ?? '-' }}
                 </div>

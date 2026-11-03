@@ -45,8 +45,7 @@ class UserController extends Controller
                 WHEN role = 'super_admin' THEN 1
                 WHEN role = 'eksekutif' THEN 2
                 WHEN role = 'operator_kabupaten' THEN 3
-                WHEN role = 'mitra_bpn' THEN 4
-                ELSE 5
+                ELSE 4
             END
         ")->orderBy('name')->paginate(15)->withQueryString();
 
@@ -55,7 +54,6 @@ class UserController extends Controller
             'super_admin' => User::where('role', 'super_admin')->count(),
             'operator' => User::where('role', 'operator_kabupaten')->count(),
             'eksekutif' => User::where('role', 'eksekutif')->count(),
-            'bpn' => User::where('role', 'mitra_bpn')->count(),
         ];
 
         return view('admin.manajemen_pengguna.manajemen_pengguna', compact('users', 'regencies', 'counts'));
@@ -79,7 +77,7 @@ class UserController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|email|max:255|unique:users,email',
             'password' => 'required|string|min:6',
-            'role' => 'required|in:super_admin,operator_kabupaten,eksekutif,mitra_bpn',
+            'role' => 'required|in:super_admin,operator_kabupaten,eksekutif',
             'regency_id' => 'nullable|required_if:role,operator_kabupaten|exists:regencies,id',
             'nip' => 'nullable|string|max:50',
             'phone' => 'nullable|string|max:30',
@@ -135,7 +133,7 @@ class UserController extends Controller
             'name' => 'required|string|max:255',
             'email' => ['required', 'email', 'max:255', Rule::unique('users')->ignore($user->id)],
             'password' => 'nullable|string|min:6',
-            'role' => 'required|in:super_admin,operator_kabupaten,eksekutif,mitra_bpn',
+            'role' => 'required|in:super_admin,operator_kabupaten,eksekutif',
             'regency_id' => 'nullable|required_if:role,operator_kabupaten|exists:regencies,id',
             'nip' => 'nullable|string|max:50',
             'phone' => 'nullable|string|max:30',

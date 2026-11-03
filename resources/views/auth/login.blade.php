@@ -17,9 +17,9 @@
 
     <!-- Baris atas: kembali ke peta + penanda akses -->
     <div class="atlas-auth-top">
-        <a href="{{ url('/') }}">
+        <a href="{{ route('home') }}">
             <svg class="atlas-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5m6 6-6-6 6-6"/></svg>
-            <span>Kembali ke peta publik</span>
+            <span>Kembali ke beranda</span>
         </a>
         <span class="atlas-auth-tag">Akses kedinasan</span>
     </div>
@@ -84,10 +84,6 @@
                     <button type="button" onclick="fillLogin('kadis@kalselprov.go.id', 'password123')">
                         <strong>Eksekutif (Kadis)</strong>
                         <code>kadis@…</code>
-                    </button>
-                    <button type="button" onclick="fillLogin('kanwil.bpn@atrbpn.go.id', 'password123')">
-                        <strong>Mitra Kanwil BPN</strong>
-                        <code>kanwil.bpn@…</code>
                     </button>
                 </div>
                 <span style="text-align: center;">Kata sandi seluruh akun: <code>password123</code></span>

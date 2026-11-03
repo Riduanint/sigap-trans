@@ -13,16 +13,28 @@ class SigapWebGis {
         this.clusterGroup = null;
         this.polygonLayerGroup = null;
         this.regencyLayerGroup = null;
+        this.skpLayerGroup = null;
         this.highlightPolygonLayer = null;
         this.allFeatures = [];
         this.filteredFeatures = [];
         this.regencyLayers = {}; // ID -> L.geoJSON
+        this.skpLayers = []; // Daftar layer L.geoJSON SKP
         this.markers = {}; // ID -> L.marker
         this.activeBasemap = 'street';
         this.tileLayers = {};
+        const urlParams = new URLSearchParams(window.location.search);
+        this.targetSkpId = urlParams.get('skp_id') || urlParams.get('skp');
         this.showPolygons = true;
         this.showRegencyBoundaries = true;
+        this.showSkpBoundaries = Boolean(this.targetSkpId);
         this.selectedRegencyId = 'all';
+        this.isNavigationVisible = true;
+
+        // State loading & debounce
+        this.isSkpLoading = false;
+        this.lastSkpClickTime = 0;
+        this.isUptLoading = false;
+        this.lastUptClickTime = 0;
 
         // Koordinat default Kalimantan Selatan
         this.defaultCenter = [-2.80, 115.35];
@@ -39,6 +51,8 @@ class SigapWebGis {
         this.bindEvents();
         this.loadInitialData();
         this.loadRegencyBoundaries();
+        this.loadSkpBoundaries();
+        this.initNavigationToggle();
     }
 
     initMap() {
@@ -51,10 +65,26 @@ class SigapWebGis {
             attributionControl: false,
         });
 
-        // Zoom Control di posisi kanan bawah
+        // Zoom Control di posisi kanan bawah (terangkat di atas telemetry bar)
         L.control.zoom({
             position: 'bottomright'
         }).addTo(this.map);
+
+        // Update koordinat kursor live pada telemetry bar
+        this.map.on('mousemove', (e) => {
+            const coordsEl = document.getElementById('telemetry-coords');
+            if (coordsEl) {
+                coordsEl.textContent = `${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}`;
+            }
+        });
+
+        // Update zoom level live pada telemetry bar
+        this.map.on('zoomend', () => {
+            const zoomEl = document.getElementById('telemetry-zoom');
+            if (zoomEl) {
+                zoomEl.textContent = this.map.getZoom();
+            }
+        });
     }
 
     initBasemaps() {
@@ -121,6 +151,9 @@ class SigapWebGis {
         // Layer Group untuk Poligon Batas Wilayah 9 Kabupaten (Paling bawah agar pin tidak tertutup)
         this.regencyLayerGroup = L.layerGroup().addTo(this.map);
 
+        // Layer Group untuk Poligon Cakupan Kawasan Transmigrasi SKP
+        this.skpLayerGroup = L.layerGroup().addTo(this.map);
+
         // Layer Group untuk Poligon Delineasi Kawasan UPT
         this.polygonLayerGroup = L.layerGroup().addTo(this.map);
         this.highlightPolygonLayer = L.layerGroup().addTo(this.map);
@@ -150,6 +183,11 @@ class SigapWebGis {
         });
 
         this.map.addLayer(this.clusterGroup);
+
+        // Sinkronisasi status tampilan saklar lapisan pada toolbar
+        this.updateLayerButtonState('btn-toggle-regency-boundary', this.showRegencyBoundaries);
+        this.updateLayerButtonState('btn-toggle-skp-boundary', this.showSkpBoundaries);
+        this.updateLayerButtonState('btn-toggle-polygon', this.showPolygons);
     }
 
     async loadRegencyBoundaries() {
@@ -219,6 +257,172 @@ class SigapWebGis {
         } catch (error) {
             console.warn('Gagal memuat batas kabupaten:', error);
         }
+    }
+
+    async loadSkpBoundaries() {
+        try {
+            let response = await fetch('/api/skp-locations');
+            if (!response.ok) {
+                response = await fetch('/api/skp-locations/cahaya-baru');
+            }
+            if (!response.ok) {
+                response = await fetch('/data/skp_cahaya_baru.geojson');
+            }
+            const data = await response.json();
+            if (!data.features) return;
+
+            this.skpLayers = [];
+            this.skpLayerGroup.clearLayers();
+
+            data.features.forEach(feature => {
+                const p = feature.properties || {};
+                const color = p.color || '#163A63';
+
+                const layer = L.geoJSON(feature, {
+                    style: {
+                        color: color,
+                        weight: 2.2,
+                        opacity: 0.9,
+                        fillColor: color,
+                        fillOpacity: 0.18,
+                        dashArray: '4, 4'
+                    }
+                });
+
+                // Tooltip label saat hover
+                layer.bindTooltip(`
+                    <div class="px-2 py-1 font-semibold text-xs text-[#0E2A47]">
+                        <div class="font-bold flex items-center gap-1.5" style="color: ${color}">
+                            <span>●</span> ${p.nama}
+                        </div>
+                        <div class="text-[10px] text-slate-500 mt-0.5">${p.kawasan || 'Kawasan Transmigrasi'} · ${p.luas_formatted} Ha</div>
+                    </div>
+                `, {
+                    sticky: true,
+                    direction: 'top',
+                    className: 'atlas-tooltip-skp'
+                });
+
+                // Interaktivitas hover highlight
+                layer.on('mouseover', () => {
+                    layer.setStyle({
+                        weight: 3.5,
+                        fillOpacity: 0.35,
+                        dashArray: ''
+                    });
+                });
+
+                layer.on('mouseout', () => {
+                    layer.setStyle({
+                        weight: 2.2,
+                        fillOpacity: 0.18,
+                        dashArray: '4, 4'
+                    });
+                });
+
+                // Klik poligon membuka popup informatif kedinasan
+                layer.bindPopup(this.generateSkpPopupHtml(feature));
+
+                layer.feature = feature;
+                this.skpLayers.push(layer);
+            });
+
+            // Perbarui visibilitas layer sesuai filter wilayah dan status tombol saat ini
+            this.updateSkpLayersVisibility();
+
+            // Jika ada target SKP dari URL (?skp_id=X), pusatkan peta langsung ke poligon SKP tersebut
+            if (this.targetSkpId) {
+                this.showSkpBoundaries = true;
+                this.updateSkpLayersVisibility();
+                this.updateLayerButtonState('btn-toggle-skp-boundary', true);
+
+                const targetLayer = this.skpLayers.find(l => {
+                    const fid = String(l.feature?.id || l.feature?.properties?.id || '');
+                    const fName = String(l.feature?.properties?.nama || '').toLowerCase().trim();
+                    const targetStr = String(this.targetSkpId).toLowerCase().trim();
+                    return fid === targetStr || fName === targetStr;
+                });
+
+                if (targetLayer) {
+                    setTimeout(() => {
+                        this.map.fitBounds(targetLayer.getBounds(), {
+                            padding: [60, 60],
+                            maxZoom: 14
+                        });
+                        targetLayer.openPopup();
+                    }, 400);
+                }
+            }
+        } catch (error) {
+            console.warn('Gagal memuat batas SKP Cahaya Baru:', error);
+        }
+    }
+
+    generateSkpPopupHtml(feature) {
+        const p = feature.properties || {};
+        const color = p.color || '#163A63';
+        const bboxStr = p.bbox ? JSON.stringify(p.bbox) : 'null';
+
+        return `
+            <div class="overflow-hidden rounded-lg bg-white text-[#243746] shadow-md border border-[#D4DEE7] min-w-[270px]">
+                <div class="px-4 py-2.5 border-b border-[#D4DEE7] flex items-center justify-between" style="background-color: #F8FAFC;">
+                    <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded text-white" style="background-color: ${color};">
+                        ${p.nama}
+                    </span>
+                    <span class="text-[11px] font-medium text-[#5A6E7D]">
+                        Kab. ${p.kabupaten}
+                    </span>
+                </div>
+                <div class="p-3.5 space-y-2.5">
+                    <div>
+                        <h4 class="font-bold text-[#0E2A47] text-sm leading-snug">
+                            ${p.nama} · ${p.kawasan}
+                        </h4>
+                        <p class="text-[11px] text-[#5A6E7D] mt-0.5">
+                            ${p.keterangan || 'Satuan Kawasan Pengembangan Transmigrasi'}
+                        </p>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2 bg-[#F3F6F8] rounded-md p-2 border border-[#D4DEE7] text-xs">
+                        <div>
+                            <span class="text-[#5A6E7D] block text-[9px] uppercase font-semibold">Estimasi Luas</span>
+                            <strong class="text-[#107C41] text-xs tabular-nums">${p.luas_formatted} Ha</strong>
+                        </div>
+                        <div>
+                            <span class="text-[#5A6E7D] block text-[9px] uppercase font-semibold">Rujukan DPMD</span>
+                            <span class="font-semibold text-[#243746] text-xs">Edisi 2023</span>
+                        </div>
+                        <div class="col-span-2 pt-1 border-t border-[#D4DEE7] text-[10px] text-[#5A6E7D]">
+                            Sumber data: ${p.sumber || 'DPMD Batola & BIG'}
+                        </div>
+                    </div>
+
+                    <button onclick="window.sigapMap.openSkpDetail(${p.id || feature.id ? (p.id || feature.id) : `'${p.nama}'`}, this)"
+                        class="w-full bg-[#163A63] hover:bg-[#0E2A47] active:scale-[0.98] text-white font-semibold text-xs py-2 px-3 rounded-md transition flex items-center justify-center gap-1.5 shadow-sm">
+                        <span>Buka rincian lengkap</span>
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" d="M9 5l7 7-7 7"></path></svg>
+                    </button>
+
+                    <div class="flex items-center justify-between pt-1 border-t border-[#D4DEE7] text-[11px]">
+                        <span class="text-[#5A6E7D]">Aksi peta:</span>
+                        <button type="button" onclick="window.sigapMap.fitToFeatureBounds(${bboxStr})" class="text-[#2457A7] hover:text-[#0E2A47] font-semibold hover:underline flex items-center gap-1">
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                            <span>Fokuskan kamera</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    fitToFeatureBounds(bbox) {
+        if (!bbox || bbox.length !== 4) return;
+        // bbox: [xmin, ymin, xmax, ymax] -> [[ymin, xmin], [ymax, xmax]]
+        const bounds = L.latLngBounds([[bbox[1], bbox[0]], [bbox[3], bbox[2]]]);
+        this.map.fitBounds(bounds, {
+            padding: [50, 50],
+            maxZoom: 13
+        });
     }
 
     resetRegencyPolygonStyle(regId) {
@@ -329,6 +533,17 @@ class SigapWebGis {
                         }
                     }
                 }
+
+                // Cek apakah ada sasaran SKP tertentu dari parameter URL (?skp_id=X atau ?skp=X)
+                const skpIdParam = urlParams.get('skp_id') || urlParams.get('skp');
+                if (skpIdParam) {
+                    this.targetSkpId = skpIdParam;
+                    this.showSkpBoundaries = true;
+                    setTimeout(() => {
+                        this.toggleSkpBoundaries(true);
+                        this.openSkpDetail(skpIdParam, null, true);
+                    }, 400);
+                }
             }
         } catch (error) {
             console.error('Gagal memuat data WebGIS:', error);
@@ -345,7 +560,13 @@ class SigapWebGis {
         const bounds = [];
 
         features.forEach(feature => {
+            if (!feature.geometry || !feature.geometry.coordinates) return;
             const coords = feature.geometry.coordinates; // [lng, lat]
+            if (typeof coords[0] !== 'number' || typeof coords[1] !== 'number') return;
+            if (coords[0] === 0 && coords[1] === 0) return;
+            // Hanya koordinat yang valid dalam cakupan wilayah Indonesia/Kalimantan
+            if (coords[1] < -12 || coords[1] > 8 || coords[0] < 95 || coords[0] > 142) return;
+
             const latLng = [coords[1], coords[0]];
             bounds.push(latLng);
 
@@ -373,24 +594,38 @@ class SigapWebGis {
         const props = feature.properties;
         const status = props.issue_status || 'clean';
 
-        // Custom DivIcon Traffic Light
+        // Custom DivIcon Traffic Light (Clean Pin Design tanpa mystery number)
         const icon = L.divIcon({
             className: `custom-pin pin-${status}`,
             html: `
-                <div class="pin-bubble">
-                    <span class="pin-bubble-inner">${props.upt_number}</span>
+                <div class="pin-marker-core">
+                    <div class="pin-marker-dot"></div>
                 </div>
             `,
-            iconSize: [32, 32],
-            iconAnchor: [16, 32],
-            popupAnchor: [0, -32]
+            iconSize: [26, 26],
+            iconAnchor: [13, 26],
+            popupAnchor: [0, -26]
         });
 
         const marker = L.marker(latLng, { icon: icon });
         marker.feature = feature;
         this.markers[feature.id] = marker;
 
-        // Popup Content
+        // Tooltip Instan saat Hover (Don't Make Me Think)
+        const villageText = props.current_village_name ? ` • Desa ${props.current_village_name}` : '';
+        marker.bindTooltip(`
+            <div class="gis-pin-tooltip">
+                <span class="gis-pin-tooltip-title">UPT ${props.upt_name}</span>
+                <span class="gis-pin-tooltip-sub">Kab. ${props.regency_name || '-'}${villageText}</span>
+            </div>
+        `, {
+            direction: 'top',
+            offset: [0, -26],
+            opacity: 0.98,
+            className: 'atlas-pin-tooltip-wrapper'
+        });
+
+        // Popup Content saat Diklik
         const popupContent = this.generatePopupHtml(feature);
         marker.bindPopup(popupContent, {
             maxWidth: 340,
@@ -418,6 +653,22 @@ class SigapWebGis {
                 dashArray: '3, 4'
             }
         });
+
+        if (props.current_village_name || props.upt_name) {
+            const vName = props.current_village_name ? `Desa ${props.current_village_name}` : `UPT ${props.upt_name}`;
+            polygon.bindTooltip(`
+                <div class="px-2 py-1 font-semibold text-xs text-[#0E2A47]">
+                    <div class="font-bold flex items-center gap-1.5" style="color: ${color}">
+                        <span>●</span> ${vName}
+                    </div>
+                    <div class="text-[10px] text-slate-500 mt-0.5">Batas Desa UPT ${props.upt_name}</div>
+                </div>
+            `, {
+                sticky: true,
+                direction: 'top',
+                className: 'atlas-tooltip-skp'
+            });
+        }
 
         polygon.on('click', () => {
             this.openDetail(feature.id);
@@ -481,8 +732,8 @@ class SigapWebGis {
                         ${statusBadge}
                     </div>
 
-                    <button onclick="window.sigapMap.openDetail(${feature.id})"
-                        class="w-full bg-[#2457A7] hover:bg-[#194482] text-white font-semibold text-xs py-2 px-3 rounded-md transition flex items-center justify-center gap-1.5">
+                    <button onclick="window.sigapMap.openDetail(${feature.id}, this)"
+                        class="w-full bg-[#2457A7] hover:bg-[#194482] active:scale-[0.98] text-white font-semibold text-xs py-2 px-3 rounded-md transition flex items-center justify-center gap-1.5 shadow-sm">
                         <span>Buka riwayat lengkap</span>
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" d="M9 5l7 7-7 7"></path></svg>
                     </button>
@@ -514,7 +765,9 @@ class SigapWebGis {
                     '1': 'Tapin', '2': 'Hulu Sungai Utara', '3': 'Balangan', '4': 'Tabalong',
                     '5': 'Tanah Laut', '6': 'Barito Kuala', '7': 'Kota Baru', '8': 'Tanah Bumbu', '9': 'Banjar'
                 };
-                if (p.regency_name !== regMap[regencyId]) return false;
+                const matchesId = p.regency_id && String(p.regency_id) === String(regencyId);
+                const matchesName = regMap[regencyId] && p.regency_name === regMap[regencyId];
+                if (!matchesId && !matchesName) return false;
             }
 
             // Filter Status
@@ -552,15 +805,39 @@ class SigapWebGis {
             return true;
         });
 
-        this.renderFeatures(this.filteredFeatures);
+        // Jangan fitBounds ganda: renderFeatures hanya me-render pin dan poligon desa
+        this.renderFeatures(this.filteredFeatures, false);
         this.updateDynamicMetrics(this.filteredFeatures);
 
-        // Jika kabupaten spesifik dipilih, zoom tepat ke batas poligon kabupaten tersebut
-        if (regencyId !== 'all' && this.regencyLayers[regencyId]) {
+        // Zoom kamera sesuai filter kabupaten (jika bukan sedang menargetkan SKP atau UPT spesifik)
+        const urlParams = new URLSearchParams(window.location.search);
+        const hasSpecificTarget = this.targetSkpId || urlParams.get('upt_id') || urlParams.get('id');
+
+        if (!hasSpecificTarget && regencyId !== 'all' && this.regencyLayers[regencyId]) {
             this.map.fitBounds(this.regencyLayers[regencyId].getBounds(), {
                 padding: [50, 50],
                 maxZoom: 12
             });
+        } else if (!hasSpecificTarget && regencyId === 'all' && search.length === 0) {
+            // Jika reset atau kembali ke semua wilayah dan tidak sedang cari teks, pusatkan ke Kalsel
+            this.map.flyTo(this.defaultCenter, this.defaultZoom, { duration: 0.8 });
+        }
+
+        // Sinkronisasi status lapisan Kawasan SKP saat wilayah berubah:
+        if (this.targetSkpId) {
+            this.showSkpBoundaries = true;
+            this.updateSkpLayersVisibility();
+            this.updateLayerButtonState('btn-toggle-skp-boundary', true);
+        } else {
+            const hasSkpInRegency = regencyId === 'all' ||
+                this.skpLayers.some(layer => String(layer.feature?.properties?.regency_id) === String(regencyId));
+            if (hasSkpInRegency && regencyId !== 'all') {
+                this.showSkpBoundaries = true;
+            } else if (regencyId !== 'all') {
+                this.showSkpBoundaries = false;
+            }
+            this.updateSkpLayersVisibility();
+            this.updateLayerButtonState('btn-toggle-skp-boundary', this.showSkpBoundaries);
         }
     }
 
@@ -571,6 +848,11 @@ class SigapWebGis {
         if (document.getElementById('filter-pattern')) document.getElementById('filter-pattern').value = 'all';
         if (document.getElementById('filter-search')) document.getElementById('filter-search').value = '';
 
+        // Reset status filter chips UI (kembali ke chip 'Semua')
+        document.querySelectorAll('.gis-status-chip').forEach(chip => {
+            chip.classList.toggle('is-active', chip.dataset.status === 'all');
+        });
+
         this.selectedRegencyId = 'all';
         Object.keys(this.regencyLayers).forEach(id => {
             this.resetRegencyPolygonStyle(id);
@@ -580,46 +862,137 @@ class SigapWebGis {
             this.highlightPolygonLayer.clearLayers();
         }
 
+        // Matikan lapisan SKP saat reset semua filter
+        if (this.showSkpBoundaries) {
+            this.toggleSkpBoundaries(false);
+        } else {
+            this.updateSkpLayersVisibility();
+        }
+
         this.filteredFeatures = [...this.allFeatures];
-        this.renderFeatures(this.filteredFeatures);
+        this.renderFeatures(this.filteredFeatures, false);
         this.updateDynamicMetrics(this.filteredFeatures);
 
         // Reset view ke Kalsel
         this.map.flyTo(this.defaultCenter, this.defaultZoom, { duration: 1 });
     }
 
-    togglePolygons() {
-        this.showPolygons = !this.showPolygons;
-        if (this.showPolygons) {
-            this.polygonLayerGroup.addTo(this.map);
-            this.renderFeatures(this.filteredFeatures);
-        } else {
-            this.polygonLayerGroup.clearLayers();
-        }
-
-        const btn = document.getElementById('btn-toggle-polygon');
-        if (btn) {
-            btn.classList.toggle('text-emerald-700', this.showPolygons);
-            btn.classList.toggle('bg-emerald-50', this.showPolygons);
+    updateLayerButtonState(btnId, isActive) {
+        const btn = document.getElementById(btnId);
+        if (!btn) return;
+        btn.classList.toggle('is-active', !!isActive);
+        btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+        const badge = btn.querySelector('span:last-child');
+        if (badge) {
+            badge.textContent = isActive ? 'AKTIF' : 'NONAKTIF';
+            badge.className = isActive ? 'text-[10px] text-emerald-600 font-bold' : 'text-[10px] text-slate-400 font-semibold';
         }
     }
 
-    toggleRegencyBoundaries() {
-        this.showRegencyBoundaries = !this.showRegencyBoundaries;
+    togglePolygons(forceState = null) {
+        this.showPolygons = forceState !== null ? forceState : !this.showPolygons;
+        if (this.showPolygons) {
+            this.polygonLayerGroup.addTo(this.map);
+            this.renderFeatures(this.filteredFeatures, false);
+        } else {
+            this.polygonLayerGroup.clearLayers();
+        }
+        this.updateLayerButtonState('btn-toggle-polygon', this.showPolygons);
+    }
+
+    toggleRegencyBoundaries(forceState = null) {
+        this.showRegencyBoundaries = forceState !== null ? forceState : !this.showRegencyBoundaries;
         if (this.showRegencyBoundaries) {
             this.regencyLayerGroup.addTo(this.map);
         } else {
             this.map.removeLayer(this.regencyLayerGroup);
         }
+        this.updateLayerButtonState('btn-toggle-regency-boundary', this.showRegencyBoundaries);
+    }
 
-        const btn = document.getElementById('btn-toggle-regency-boundary');
-        if (btn) {
-            btn.classList.toggle('text-purple-700', this.showRegencyBoundaries);
-            btn.classList.toggle('bg-purple-50', this.showRegencyBoundaries);
-            btn.classList.toggle('border-purple-200/70', this.showRegencyBoundaries);
-            btn.classList.toggle('bg-white/80', !this.showRegencyBoundaries);
-            btn.classList.toggle('text-slate-700', !this.showRegencyBoundaries);
+    updateSkpLayersVisibility() {
+        this.skpLayerGroup.clearLayers();
+        if (!this.showSkpBoundaries) return;
+
+        this.skpLayers.forEach(layer => {
+            const featureRegId = layer.feature?.properties?.regency_id;
+            const featureId = layer.feature?.id || layer.feature?.properties?.id;
+            // Tampilkan poligon SKP jika filter 'all' atau cocok dengan kabupaten poligon tersebut, ATAU jika ini target SKP yang dipilih
+            if (this.selectedRegencyId === 'all' || String(featureRegId) === String(this.selectedRegencyId) || (this.targetSkpId && String(featureId) === String(this.targetSkpId))) {
+                this.skpLayerGroup.addLayer(layer);
+            }
+        });
+    }
+
+    toggleSkpBoundaries(forceState = null) {
+        this.showSkpBoundaries = forceState !== null ? forceState : !this.showSkpBoundaries;
+
+        // Cek apakah ada data SKP untuk wilayah yang sedang dipilih (atau jika menargetkan SKP tertentu)
+        const hasMatchingSkp = this.targetSkpId || this.selectedRegencyId === 'all' ||
+            this.skpLayers.some(layer => String(layer.feature?.properties?.regency_id) === String(this.selectedRegencyId));
+
+        if (this.showSkpBoundaries && !hasMatchingSkp) {
+            // Jika wilayah yang dipilih tidak memiliki data SKP, jangan aktifkan tombol
+            this.showSkpBoundaries = false;
+            this.updateLayerButtonState('btn-toggle-skp-boundary', false);
+            this.skpLayerGroup.clearLayers();
+            return;
         }
+
+        this.updateSkpLayersVisibility();
+        this.updateLayerButtonState('btn-toggle-skp-boundary', this.showSkpBoundaries);
+    }
+
+    initNavigationToggle() {
+        const savedState = localStorage.getItem('sigap-webgis-nav-visible');
+        if (savedState === 'false') {
+            this.toggleNavigationUI(false);
+        }
+    }
+
+    toggleNavigationUI(forceState = null) {
+        if (forceState !== null) {
+            this.isNavigationVisible = forceState;
+        } else {
+            this.isNavigationVisible = !this.isNavigationVisible;
+        }
+
+        const unifiedIsland = document.getElementById('unified-gis-island');
+        const btnToggle = document.getElementById('btn-toggle-navigation');
+        const eyeOpen = document.getElementById('icon-nav-eye-open');
+        const eyeClosed = document.getElementById('icon-nav-eye-closed');
+
+        if (this.isNavigationVisible) {
+            if (unifiedIsland) unifiedIsland.classList.remove('is-hidden');
+            if (btnToggle) {
+                btnToggle.classList.remove('is-collapsed');
+                btnToggle.setAttribute('aria-expanded', 'true');
+                btnToggle.title = 'Sembunyikan panel kontrol dan filter';
+            }
+            if (eyeOpen) eyeOpen.classList.remove('hidden');
+            if (eyeClosed) eyeClosed.classList.add('hidden');
+        } else {
+            if (unifiedIsland) unifiedIsland.classList.add('is-hidden');
+            if (btnToggle) {
+                btnToggle.classList.add('is-collapsed');
+                btnToggle.setAttribute('aria-expanded', 'false');
+                btnToggle.title = 'Tampilkan panel kontrol dan filter';
+            }
+            if (eyeOpen) eyeOpen.classList.add('hidden');
+            if (eyeClosed) eyeClosed.classList.remove('hidden');
+        }
+
+        try {
+            localStorage.setItem('sigap-webgis-nav-visible', String(this.isNavigationVisible));
+        } catch (e) {
+            // LocalStorage might be unavailable
+        }
+
+        setTimeout(() => {
+            if (this.map) {
+                this.map.invalidateSize();
+            }
+        }, 360);
     }
 
     updateStatisticsDisplay(meta) {
@@ -628,18 +1001,28 @@ class SigapWebGis {
         const totalEl = document.getElementById('stat-total-upt');
         const placementKkEl = document.getElementById('stat-placement-kk');
         const handoverKkEl = document.getElementById('stat-handover-kk');
-        const cleanEl = document.getElementById('stat-clean');
-        const warningEl = document.getElementById('stat-warning');
-        const criticalEl = document.getElementById('stat-critical');
         const filteredCountEl = document.getElementById('filter-count-badge');
 
-        if (totalEl) totalEl.innerText = meta.total_features || 124;
-        if (placementKkEl) placementKkEl.innerText = (meta.total_kk_placement || 63701).toLocaleString();
-        if (handoverKkEl) handoverKkEl.innerText = (meta.total_kk_handover || 64942).toLocaleString();
-        if (cleanEl) cleanEl.innerText = meta.status_counts?.clean || 111;
-        if (warningEl) warningEl.innerText = meta.status_counts?.warning || 7;
-        if (criticalEl) criticalEl.innerText = meta.status_counts?.critical || 6;
-        if (filteredCountEl) filteredCountEl.innerText = `${meta.total_features} / 124`;
+        const chipAll = document.getElementById('stat-chip-all');
+        const chipClean = document.getElementById('stat-chip-clean');
+        const chipWarning = document.getElementById('stat-chip-warning');
+        const chipCritical = document.getElementById('stat-chip-critical');
+
+        const total = meta.total_features ?? 0;
+        const clean = meta.status_counts?.clean ?? 0;
+        const warning = meta.status_counts?.warning ?? 0;
+        const critical = meta.status_counts?.critical ?? 0;
+
+        if (totalEl) totalEl.innerText = total.toLocaleString('id-ID');
+        if (placementKkEl) placementKkEl.innerText = (meta.total_kk_placement || 0).toLocaleString('id-ID');
+        if (handoverKkEl) handoverKkEl.innerText = (meta.total_kk_handover || 0).toLocaleString('id-ID');
+
+        if (filteredCountEl) filteredCountEl.innerText = `${total} UPT Aktif`;
+
+        if (chipAll) chipAll.innerText = total;
+        if (chipClean) chipClean.innerText = clean;
+        if (chipWarning) chipWarning.innerText = warning;
+        if (chipCritical) chipCritical.innerText = critical;
     }
 
     updateDynamicMetrics(features) {
@@ -662,19 +1045,29 @@ class SigapWebGis {
         });
     }
 
-    async openDetail(id) {
+    async openDetail(id, btnEl = null) {
+        const now = Date.now();
+        // Debounce: abaikan klik ganda jika rentang < 400ms atau request sedang berlangsung
+        if (this.isUptLoading || (now - this.lastUptClickTime < 400)) {
+            return;
+        }
+        this.lastUptClickTime = now;
+        this.isUptLoading = true;
+
+        if (btnEl && btnEl.classList) {
+            btnEl.classList.add('opacity-75', 'pointer-events-none');
+        }
+
         const drawer = document.getElementById('upt-detail-drawer');
         const content = document.getElementById('upt-detail-content');
-        if (!drawer || !content) return;
+        if (!drawer || !content) {
+            this.isUptLoading = false;
+            return;
+        }
 
-        // Buka drawer lebih dulu dengan skeleton/spinner
+        // Buka drawer lebih dulu dengan skeleton loading terstruktur
         drawer.classList.remove('translate-x-full');
-        content.innerHTML = `
-            <div class="p-8 text-center py-24">
-                <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-emerald-500 border-t-transparent"></div>
-                <p class="mt-3 text-sm text-slate-500 font-medium">Memuat data profil riwayat UPT...</p>
-            </div>
-        `;
+        content.innerHTML = this.getUptSkeletonHtml();
 
         try {
             const res = await fetch(`/api/upt-locations/${id}`);
@@ -688,7 +1081,49 @@ class SigapWebGis {
                     <p class="font-bold">Gagal memuat detail data.</p>
                 </div>
             `;
+        } finally {
+            if (btnEl && btnEl.classList) {
+                btnEl.classList.remove('opacity-75', 'pointer-events-none');
+            }
+            setTimeout(() => {
+                this.isUptLoading = false;
+            }, 300);
         }
+    }
+
+    getUptSkeletonHtml() {
+        return `
+            <div class="animate-pulse flex flex-col h-full">
+                <!-- Header Skeleton -->
+                <div class="p-6 border-b border-[#D4DEE7] bg-white space-y-3">
+                    <div class="flex items-center justify-between">
+                        <div class="h-5 w-28 bg-[#CBD8E6] rounded"></div>
+                        <div class="h-4 w-32 bg-[#E2E8F0] rounded"></div>
+                    </div>
+                    <div class="h-7 w-3/4 bg-[#CBD8E6] rounded"></div>
+                    <div class="h-4 w-1/2 bg-[#E2E8F0] rounded"></div>
+                </div>
+
+                <!-- Body Skeleton -->
+                <div class="p-6 space-y-6 flex-1">
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="bg-white p-3.5 rounded-lg border border-[#CBD8E6] space-y-2 shadow-xs">
+                            <div class="h-2.5 w-16 bg-[#CBD8E6] rounded"></div>
+                            <div class="h-6 w-20 bg-[#CBD8E6] rounded"></div>
+                        </div>
+                        <div class="bg-white p-3.5 rounded-lg border border-[#CBD8E6] space-y-2 shadow-xs">
+                            <div class="h-2.5 w-16 bg-[#CBD8E6] rounded"></div>
+                            <div class="h-6 w-20 bg-[#CBD8E6] rounded"></div>
+                        </div>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg border border-[#CBD8E6] space-y-3 shadow-xs">
+                        <div class="h-4 w-36 bg-[#CBD8E6] rounded"></div>
+                        <div class="h-3 w-full bg-[#E2E8F0] rounded"></div>
+                        <div class="h-3 w-4/5 bg-[#E2E8F0] rounded"></div>
+                    </div>
+                </div>
+            </div>
+        `;
     }
 
     renderDetailContent(data) {
@@ -788,26 +1223,83 @@ class SigapWebGis {
                 </div>
 
                 <!-- Repositori e-arsip dokumen BAST -->
-                <div class="bg-white rounded-lg p-4 border border-[#D4DEE7]">
-                    <div class="flex items-center justify-between mb-2">
-                        <span class="text-[10px] font-semibold text-[#5A6E7D] uppercase tracking-wider">E-arsip BAST &amp; dokumen SK</span>
-                        <span class="text-xs font-semibold text-[#243746] bg-[#E7EEF3] px-2 py-0.5 rounded tabular-nums">${data.documents_count} dokumen</span>
-                    </div>
+                ${(() => {
+                    const isAuth = Boolean(window.sigapConfig?.isAuthenticated || data.is_authenticated);
+                    const docs = data.documents || [];
 
-                    <div class="p-3 bg-[#FAF3E4] border border-[#E7D9B4] rounded-md text-xs text-[#243746] mb-3">
-                        <div class="flex items-start gap-2">
-                            <svg class="w-4 h-4 text-[#97620B] shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
-                            <div>
-                                <strong class="block font-semibold text-[#97620B]">Akses dokumen fisik terproteksi:</strong>
-                                Berkas scan BAST fisik dan telaah hukum agraria memerlukan autentikasi aparatur dinas untuk verifikasi alas hak.
+                    if (!isAuth) {
+                        return `
+                            <div class="bg-white rounded-lg p-4 border border-[#D4DEE7]">
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="text-[10px] font-semibold text-[#5A6E7D] uppercase tracking-wider">E-arsip BAST &amp; dokumen SK</span>
+                                    <span class="text-xs font-semibold text-[#243746] bg-[#E7EEF3] px-2 py-0.5 rounded tabular-nums">${data.documents_count} dokumen</span>
+                                </div>
+
+                                <div class="p-3 bg-[#FAF3E4] border border-[#E7D9B4] rounded-md text-xs text-[#243746] mb-3">
+                                    <div class="flex items-start gap-2">
+                                        <svg class="w-4 h-4 text-[#97620B] shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                                        <div>
+                                            <strong class="block font-semibold text-[#97620B]">Akses dokumen fisik terproteksi:</strong>
+                                            Berkas scan BAST fisik dan telaah hukum agraria memerlukan autentikasi aparatur dinas untuk verifikasi alas hak.
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <a href="${window.sigapConfig?.loginUrl || '/login'}" class="w-full bg-[#2457A7] hover:bg-[#194482] text-white font-semibold text-xs py-2.5 px-3 rounded-md text-center block transition shadow-xs">
+                                    Masuk akun kedinasan untuk unduh dokumen →
+                                </a>
                             </div>
-                        </div>
-                    </div>
+                        `;
+                    }
 
-                    <a href="/login" class="w-full bg-[#2457A7] hover:bg-[#194482] text-white font-semibold text-xs py-2.5 px-3 rounded-md text-center block transition">
-                        Masuk akun kedinasan untuk unduh dokumen →
-                    </a>
-                </div>
+                    const repoUrl = `${window.sigapConfig?.documentsRepoUrl || '/admin/documents'}?search=${encodeURIComponent(data.upt_name)}`;
+                    let docsItemsHtml = '';
+
+                    if (docs.length > 0) {
+                        const previewDocs = docs.slice(0, 2);
+                        docsItemsHtml = previewDocs.map(doc => {
+                            const downloadUrl = doc.download_url || `${window.sigapConfig?.downloadDocBaseUrl || '/admin/documents'}/${doc.id}/download`;
+                            const sizeText = doc.file_size_kb ? `${Math.round(doc.file_size_kb)} KB` : '';
+                            return `
+                                <div class="flex items-center justify-between p-2.5 bg-[#F8FAFC] border border-[#D4DEE7] rounded-md text-xs mb-2 hover:bg-[#F3F6F8] transition">
+                                    <div class="flex items-center gap-2.5 overflow-hidden mr-2">
+                                        <svg class="w-4 h-4 text-[#C42B1C] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+                                        <div class="truncate">
+                                            <strong class="block text-[#0E2A47] truncate font-semibold" title="${doc.file_name}">${doc.file_name}</strong>
+                                            <span class="text-[10px] text-[#5A6E7D]">${doc.document_type || 'Berkas BAST'}${sizeText ? ' · ' + sizeText : ''}</span>
+                                        </div>
+                                    </div>
+                                    <a href="${downloadUrl}" class="shrink-0 inline-flex items-center gap-1 bg-[#107C41] hover:bg-[#0D6334] text-white text-[11px] font-semibold px-2.5 py-1 rounded transition shadow-xs" title="Unduh Berkas">
+                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                                        <span>Unduh</span>
+                                    </a>
+                                </div>
+                            `;
+                        }).join('');
+                    } else {
+                        docsItemsHtml = `
+                            <div class="p-3 bg-[#F8FAFC] border border-[#D4DEE7] rounded-md text-xs text-[#5A6E7D] text-center mb-2">
+                                Belum ada arsip digital yang tersimpan untuk UPT ini.
+                            </div>
+                        `;
+                    }
+
+                    return `
+                        <div class="bg-white rounded-lg p-4 border border-[#D4DEE7]">
+                            <div class="flex items-center justify-between mb-2.5">
+                                <span class="text-[10px] font-semibold text-[#5A6E7D] uppercase tracking-wider">E-arsip BAST &amp; dokumen SK</span>
+                                <span class="text-xs font-semibold text-[#243746] bg-[#E7EEF3] px-2 py-0.5 rounded tabular-nums">${data.documents_count} dokumen</span>
+                            </div>
+
+                            ${docsItemsHtml}
+
+                            <a href="${repoUrl}" class="w-full bg-[#2457A7] hover:bg-[#194482] text-white font-semibold text-xs py-2.5 px-3 rounded-md text-center flex items-center justify-center gap-1.5 transition shadow-xs mt-2">
+                                <span>Buka Repositori Arsip Dokumen Lengkap</span>
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                            </a>
+                        </div>
+                    `;
+                })()}
 
                 <!-- Tombol aksi fokus peta -->
                 <button onclick="window.sigapMap.focusOnMap(${data.latitude}, ${data.longitude}, ${data.id})"
@@ -823,6 +1315,421 @@ class SigapWebGis {
         const drawer = document.getElementById('upt-detail-drawer');
         if (drawer) {
             drawer.classList.add('translate-x-full');
+        }
+    }
+
+    async openSkpDetail(id, btnEl = null, autoFocus = false) {
+        const now = Date.now();
+        // Debounce: abaikan klik ganda jika rentang < 400ms atau request sedang berlangsung
+        if (this.isSkpLoading || (now - this.lastSkpClickTime < 400)) {
+            return;
+        }
+        this.lastSkpClickTime = now;
+        this.isSkpLoading = true;
+
+        if (btnEl && btnEl.classList) {
+            btnEl.classList.add('opacity-75', 'pointer-events-none');
+        }
+
+        const drawer = document.getElementById('upt-detail-drawer');
+        const content = document.getElementById('upt-detail-content');
+        if (!drawer || !content) {
+            this.isSkpLoading = false;
+            return;
+        }
+
+        // Buka drawer dengan layout Skeleton Loading realistis
+        drawer.classList.remove('translate-x-full');
+        content.innerHTML = this.getSkpSkeletonHtml();
+
+        try {
+            const res = await fetch(`/api/skp-locations/${encodeURIComponent(id)}`);
+            const json = await res.json();
+            if (json.success && json.data) {
+                this.renderSkpDetailContent(json.data);
+
+                // Jika autoFocus aktif, pusatkan peta ke poligon atau centroid SKP
+                if (autoFocus) {
+                    const targetLayer = this.skpLayers.find(l => {
+                        const fid = String(l.feature?.id || l.feature?.properties?.id || '');
+                        const fName = String(l.feature?.properties?.nama || '').toLowerCase().trim();
+                        const targetStr = String(id).toLowerCase().trim();
+                        return fid === targetStr || fName === targetStr;
+                    });
+
+                    if (targetLayer) {
+                        this.map.fitBounds(targetLayer.getBounds(), {
+                            padding: [60, 60],
+                            maxZoom: 14
+                        });
+                        targetLayer.openPopup();
+                    } else if (json.data.bbox) {
+                        this.fitToFeatureBounds(json.data.bbox);
+                    } else if (json.data.centroid_lat && json.data.centroid_lng) {
+                        this.map.flyTo([json.data.centroid_lat, json.data.centroid_lng], 13, { duration: 1 });
+                    }
+                }
+            } else {
+                content.innerHTML = `
+                    <div class="p-8 text-center text-rose-500">
+                        <p class="font-bold">${json.message || 'Data Kawasan SKP tidak ditemukan.'}</p>
+                        <button onclick="window.sigapMap.closeDetail()" class="mt-4 px-4 py-1.5 bg-slate-200 text-slate-700 text-xs rounded font-medium hover:bg-slate-300">Tutup</button>
+                    </div>
+                `;
+            }
+        } catch (err) {
+            content.innerHTML = `
+                <div class="p-8 text-center text-rose-500">
+                    <p class="font-bold">Gagal memuat rincian data SKP.</p>
+                    <button onclick="window.sigapMap.closeDetail()" class="mt-4 px-4 py-1.5 bg-slate-200 text-slate-700 text-xs rounded font-medium hover:bg-slate-300">Tutup</button>
+                </div>
+            `;
+        } finally {
+            if (btnEl && btnEl.classList) {
+                btnEl.classList.remove('opacity-75', 'pointer-events-none');
+            }
+            setTimeout(() => {
+                this.isSkpLoading = false;
+            }, 300);
+        }
+    }
+
+    getSkpSkeletonHtml() {
+        return `
+            <div class="animate-pulse flex flex-col h-full">
+                <!-- Header Skeleton -->
+                <div class="p-6 border-b border-[#D4DEE7] bg-white space-y-3">
+                    <div class="flex items-center justify-between">
+                        <div class="h-5 w-24 bg-[#CBD8E6] rounded"></div>
+                        <div class="h-4 w-32 bg-[#E2E8F0] rounded"></div>
+                    </div>
+                    <div class="h-7 w-4/5 bg-[#CBD8E6] rounded"></div>
+                    <div class="h-4 w-3/5 bg-[#E2E8F0] rounded"></div>
+                    <div class="flex items-center gap-2 pt-2">
+                        <div class="h-8 flex-1 bg-[#CBD8E6] rounded-md"></div>
+                        <div class="h-8 w-16 bg-[#E2E8F0] rounded-md"></div>
+                    </div>
+                </div>
+
+                <!-- Body Skeleton -->
+                <div class="p-6 space-y-6 flex-1">
+                    <!-- Metrics Grid Skeleton -->
+                    <div>
+                        <div class="h-3.5 w-44 bg-[#CBD8E6] rounded mb-3"></div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="bg-white p-3.5 rounded-lg border border-[#CBD8E6] space-y-2 shadow-xs">
+                                <div class="h-2.5 w-16 bg-[#CBD8E6] rounded"></div>
+                                <div class="h-6 w-24 bg-[#CBD8E6] rounded"></div>
+                                <div class="h-2 w-28 bg-[#E2E8F0] rounded"></div>
+                            </div>
+                            <div class="bg-white p-3.5 rounded-lg border border-[#CBD8E6] space-y-2 shadow-xs">
+                                <div class="h-2.5 w-16 bg-[#CBD8E6] rounded"></div>
+                                <div class="h-6 w-16 bg-[#CBD8E6] rounded"></div>
+                                <div class="h-2 w-24 bg-[#E2E8F0] rounded"></div>
+                            </div>
+                            <div class="bg-white p-3.5 rounded-lg border border-[#CBD8E6] space-y-2 shadow-xs">
+                                <div class="h-2.5 w-20 bg-[#CBD8E6] rounded"></div>
+                                <div class="h-6 w-28 bg-[#CBD8E6] rounded"></div>
+                                <div class="h-2 w-32 bg-[#E2E8F0] rounded"></div>
+                            </div>
+                            <div class="bg-white p-3.5 rounded-lg border border-[#CBD8E6] space-y-2 shadow-xs">
+                                <div class="h-2.5 w-20 bg-[#CBD8E6] rounded"></div>
+                                <div class="h-6 w-20 bg-[#CBD8E6] rounded"></div>
+                                <div class="h-2 w-28 bg-[#E2E8F0] rounded"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Village Rows Skeleton -->
+                    <div>
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="h-3.5 w-48 bg-[#CBD8E6] rounded"></div>
+                            <div class="h-4 w-16 bg-[#CBD8E6] rounded"></div>
+                        </div>
+                        <div class="rounded-lg border border-[#CBD8E6] bg-white divide-y divide-[#E2E8F0] overflow-hidden shadow-xs">
+                            <div class="p-3 bg-[#F8FAFC] flex justify-between">
+                                <div class="h-3 w-28 bg-[#CBD8E6] rounded"></div>
+                                <div class="h-3 w-16 bg-[#CBD8E6] rounded"></div>
+                                <div class="h-3 w-16 bg-[#CBD8E6] rounded"></div>
+                            </div>
+                            <div class="p-3.5 flex items-center justify-between">
+                                <div class="space-y-1.5 flex-1">
+                                    <div class="h-3.5 w-36 bg-[#CBD8E6] rounded"></div>
+                                    <div class="h-2.5 w-24 bg-[#E2E8F0] rounded"></div>
+                                </div>
+                                <div class="h-4 w-14 bg-[#CBD8E6] rounded"></div>
+                            </div>
+                            <div class="p-3.5 flex items-center justify-between">
+                                <div class="space-y-1.5 flex-1">
+                                    <div class="h-3.5 w-32 bg-[#CBD8E6] rounded"></div>
+                                    <div class="h-2.5 w-20 bg-[#E2E8F0] rounded"></div>
+                                </div>
+                                <div class="h-4 w-14 bg-[#CBD8E6] rounded"></div>
+                            </div>
+                            <div class="p-3.5 flex items-center justify-between">
+                                <div class="space-y-1.5 flex-1">
+                                    <div class="h-3.5 w-40 bg-[#CBD8E6] rounded"></div>
+                                    <div class="h-2.5 w-24 bg-[#E2E8F0] rounded"></div>
+                                </div>
+                                <div class="h-4 w-14 bg-[#CBD8E6] rounded"></div>
+                            </div>
+                            <div class="p-3.5 flex items-center justify-between">
+                                <div class="space-y-1.5 flex-1">
+                                    <div class="h-3.5 w-28 bg-[#CBD8E6] rounded"></div>
+                                    <div class="h-2.5 w-20 bg-[#E2E8F0] rounded"></div>
+                                </div>
+                                <div class="h-4 w-14 bg-[#CBD8E6] rounded"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    renderSkpDetailContent(data) {
+        const content = document.getElementById('upt-detail-content');
+        if (!content) return;
+
+        const color = data.color || '#163A63';
+        const bboxStr = data.bbox ? JSON.stringify(data.bbox) : 'null';
+        const centroidLat = data.centroid_lat || 0;
+        const centroidLng = data.centroid_lng || 0;
+
+        let villagesHtml = '';
+        if (data.villages && data.villages.length > 0) {
+            const villageRows = data.villages.map((v, idx) => {
+                const uptBadge = v.upt_name && v.upt_id
+                    ? `<button type="button" onclick="window.sigapMap.focusToUpt(${v.upt_id})" class="inline-flex items-center gap-1 text-[10px] font-semibold text-[#194482] bg-[#E8F0FA] hover:bg-[#D4DEE7] px-2 py-0.5 rounded border border-[#CBD8E6] transition" title="Pusatkan peta ke ${v.upt_name}"><span>${v.upt_name}</span><svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg></button>`
+                    : `<span class="inline-block text-[10px] font-medium text-[#5A6E7D] bg-slate-100 px-2 py-0.5 rounded">Desa Mandiri</span>`;
+
+                return `
+                    <tr class="hover:bg-[#F8FAFC] transition">
+                        <td class="py-2.5 px-3">
+                            <div class="font-bold text-[#0E2A47]">${idx + 1}. ${v.village_name}</div>
+                            <div class="text-[10px] text-[#5A6E7D]">Kec. ${v.district_name || '-'}</div>
+                        </td>
+                        <td class="py-2.5 px-2 text-right tabular-nums font-medium text-[#243746]">
+                            ${v.area_km2_formatted || v.area_km2 || '0'}
+                        </td>
+                        <td class="py-2.5 px-2 text-right">
+                            <span class="tabular-nums font-bold text-[#107C41]">${(v.population_total || 0).toLocaleString('id-ID')}</span>
+                            <div class="text-[9px] text-[#5A6E7D] tabular-nums">L: ${(v.population_male || 0).toLocaleString('id-ID')} · P: ${(v.population_female || 0).toLocaleString('id-ID')}</div>
+                        </td>
+                        <td class="py-2.5 px-2 text-right tabular-nums font-semibold text-[#0E2A47]">
+                            ${(v.family_count || 0).toLocaleString('id-ID')}
+                        </td>
+                        <td class="py-2.5 px-3 text-center">
+                            ${uptBadge}
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            villagesHtml = `
+                <div class="overflow-x-auto rounded-lg border border-[#CBD8E6] bg-white shadow-xs">
+                    <table class="w-full text-left text-xs border-collapse">
+                        <thead>
+                            <tr class="bg-[#F8FAFC] border-b border-[#CBD8E6] text-[#5A6E7D] uppercase font-semibold text-[10px]">
+                                <th class="py-2.5 px-3">Desa &amp; Kecamatan</th>
+                                <th class="py-2.5 px-2 text-right">Luas (Km²)</th>
+                                <th class="py-2.5 px-2 text-right">Penduduk</th>
+                                <th class="py-2.5 px-2 text-right">KK</th>
+                                <th class="py-2.5 px-3 text-center">Status / UPT</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-[#E2E8F0]">
+                            ${villageRows}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        } else {
+            villagesHtml = `
+                <div class="rounded-lg border border-dashed border-[#CBD8E6] p-6 text-center bg-white shadow-xs">
+                    <svg class="w-8 h-8 mx-auto text-[#8FA3B5] mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
+                    <h5 class="text-xs font-bold text-[#0E2A47]">Belum Ada Rincian Baris Desa</h5>
+                    <p class="text-[11px] text-[#5A6E7D] mt-1 max-w-xs mx-auto">Data rincian nama desa dan statistik kependudukan untuk kawasan ${data.skp_name} belum tercatat di database.</p>
+                </div>
+            `;
+        }
+
+        content.innerHTML = `
+            <!-- Header Identitas SKP (Atlas Style) -->
+            <div class="p-6 border-b border-[#D4DEE7] bg-white">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="inline-flex items-center gap-1.5 text-[11px] font-bold tracking-wider uppercase text-white px-2.5 py-0.5 rounded shadow-xs" style="background-color: ${color};">
+                        <span>●</span> ${data.skp_name}
+                    </span>
+                    <span class="text-xs font-semibold text-[#5A6E7D]">
+                        Kabupaten ${data.regency_name || 'Kalimantan Selatan'}
+                    </span>
+                </div>
+                <h2 class="text-2xl font-bold text-[#0E2A47] leading-tight mb-1" style="font-family: 'Barlow Semi Condensed', sans-serif;">
+                    ${data.skp_name} · ${data.kawasan_name}
+                </h2>
+                <p class="text-xs text-[#5A6E7D] leading-relaxed">
+                    ${data.keterangan || 'Satuan Kawasan Pengembangan (SKP) Kawasan Transmigrasi'}
+                </p>
+
+                <!-- Tombol aksi navigasi cepat -->
+                <div class="mt-4 flex items-center gap-2">
+                    <button type="button" onclick="window.sigapMap.focusToSkp(${bboxStr}, ${centroidLat}, ${centroidLng}, ${data.id})"
+                        class="flex-1 bg-[#163A63] hover:bg-[#0E2A47] text-white font-semibold text-xs py-2 px-3 rounded-md transition flex items-center justify-center gap-1.5 shadow-xs">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                        <span>Pusatkan Kamera ke SKP</span>
+                    </button>
+                    <button type="button" onclick="navigator.clipboard.writeText(window.location.origin + window.location.pathname + '?skp_id=' + ${data.id}); (window.showToast ? showToast('Tautan wilayah SKP berhasil disalin!', 'success') : alert('Tautan wilayah SKP disalin!'));"
+                        class="bg-[#F8FAFC] hover:bg-[#E8F0FA] text-[#0E2A47] border border-[#CBD8E6] font-semibold text-xs py-2 px-3 rounded-md transition flex items-center justify-center gap-1"
+                        title="Salin tautan wilayah SKP ini">
+                        <svg class="w-3.5 h-3.5 text-[#2457A7]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
+                        <span>Salin</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Badan Konten Drawer -->
+            ${(() => {
+                const isAuth = Boolean(window.sigapConfig?.isAuthenticated || data.is_authenticated);
+
+                if (!isAuth) {
+                    return `
+                        <div class="p-6 space-y-4">
+                            <!-- Kartu Terproteksi Logo Kunci (Tamu / Belum Login) -->
+                            <div class="bg-white rounded-lg p-5 border border-[#D4DEE7] shadow-xs">
+                                <div class="p-3.5 bg-[#FAF3E4] border border-[#E7D9B4] rounded-md text-xs text-[#243746] mb-4">
+                                    <div class="flex items-start gap-2.5">
+                                        <svg class="w-4 h-4 text-[#97620B] shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                                        <div>
+                                            <strong class="block font-semibold text-[#97620B] mb-0.5">Akses rincian wilayah terproteksi:</strong>
+                                            Rincian lengkap cakupan desa binaan dan rekapitulasi data demografi Satuan Kawasan Pengembangan (SKP) memerlukan autentikasi aparatur dinas.
+                                        </div>
+                                    </div>
+                                </div>
+                                <a href="${window.sigapConfig?.loginUrl || '/login'}" class="w-full bg-[#2457A7] hover:bg-[#194482] text-white font-semibold text-xs py-2.5 px-3 rounded-md text-center block transition shadow-xs">
+                                    Masuk akun kedinasan untuk melihat rincian lengkap →
+                                </a>
+                            </div>
+
+                            <!-- Info Estimasi Luas Tetap Tampil -->
+                            <div class="bg-white p-4 rounded-lg border border-[#CBD8E6] shadow-xs flex items-center justify-between">
+                                <div>
+                                    <span class="text-[10px] font-semibold uppercase text-[#5A6E7D] block">Estimasi Luas Kawasan</span>
+                                    <strong class="text-base font-bold text-[#107C41] tabular-nums">${data.luas_formatted} Ha</strong>
+                                </div>
+                                <div class="text-right">
+                                    <span class="text-[10px] font-semibold uppercase text-[#5A6E7D] block">Status Rujukan</span>
+                                    <span class="text-xs font-semibold text-[#0E2A47]">${data.sumber_data || 'DPMD & BIG'}</span>
+                                </div>
+                            </div>
+
+                            <!-- Keterangan & Sumber Data -->
+                            <div class="p-3.5 rounded-lg bg-[#EDF2F6] border border-[#CBD8E6] text-xs text-[#5A6E7D] space-y-1">
+                                <div class="flex items-start gap-2">
+                                    <svg class="w-4 h-4 text-[#2457A7] shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                    <div>
+                                        <span>Sumber Delineasi: <strong>${data.sumber_data || 'DPMD Batola & BIG'}</strong></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                return `
+                    <div class="p-6 space-y-6">
+                        <!-- 1. Grid Metrik Utama 4 Kolom -->
+                        <div>
+                            <h3 class="text-xs font-bold uppercase tracking-wider text-[#5A6E7D] mb-2.5">
+                                Ringkasan Spasial &amp; Kependudukan
+                            </h3>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div class="bg-white p-3.5 rounded-lg border border-[#CBD8E6] shadow-xs">
+                                    <span class="text-[10px] font-semibold uppercase text-[#5A6E7D] block mb-1">Estimasi Luas</span>
+                                    <strong class="text-lg font-bold text-[#107C41] tabular-nums block">${data.luas_formatted} Ha</strong>
+                                    <span class="text-[10px] text-[#5A6E7D]">Total luas kawasan SKP</span>
+                                </div>
+                                <div class="bg-white p-3.5 rounded-lg border border-[#CBD8E6] shadow-xs">
+                                    <span class="text-[10px] font-semibold uppercase text-[#5A6E7D] block mb-1">Cakupan Desa</span>
+                                    <strong class="text-lg font-bold text-[#0E2A47] tabular-nums block">${data.villages_count} Desa</strong>
+                                    <span class="text-[10px] text-[#5A6E7D]">Total desa terdata</span>
+                                </div>
+                                <div class="bg-white p-3.5 rounded-lg border border-[#CBD8E6] shadow-xs">
+                                    <span class="text-[10px] font-semibold uppercase text-[#5A6E7D] block mb-1">Total Penduduk</span>
+                                    <strong class="text-lg font-bold text-[#0E2A47] tabular-nums block">${(data.total_population || 0).toLocaleString('id-ID')} Jiwa</strong>
+                                    <span class="text-[10px] text-[#5A6E7D] tabular-nums">L: ${(data.total_male || 0).toLocaleString('id-ID')} · P: ${(data.total_female || 0).toLocaleString('id-ID')}</span>
+                                </div>
+                                <div class="bg-white p-3.5 rounded-lg border border-[#CBD8E6] shadow-xs">
+                                    <span class="text-[10px] font-semibold uppercase text-[#5A6E7D] block mb-1">Kepala Keluarga</span>
+                                    <strong class="text-lg font-bold text-[#0E2A47] tabular-nums block">${(data.total_family_count || 0).toLocaleString('id-ID')} KK</strong>
+                                    <span class="text-[10px] text-[#5A6E7D]">Rasio KK di wilayah SKP</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 2. Rincian Desa Binaan -->
+                        <div>
+                            <div class="flex items-center justify-between mb-2.5">
+                                <h3 class="text-xs font-bold uppercase tracking-wider text-[#5A6E7D]">
+                                    Daftar Desa dalam Cakupan SKP
+                                </h3>
+                                <span class="text-[11px] font-bold text-[#107C41] bg-[#E8F5E9] px-2 py-0.5 rounded border border-[#C8E6C9] tabular-nums">
+                                    ${data.villages_count} Desa
+                                </span>
+                            </div>
+
+                            ${villagesHtml}
+                        </div>
+
+                        <!-- 3. Keterangan & Sumber Data -->
+                        <div class="p-3.5 rounded-lg bg-[#EDF2F6] border border-[#CBD8E6] text-xs text-[#5A6E7D] space-y-1">
+                            <div class="flex items-start gap-2">
+                                <svg class="w-4 h-4 text-[#2457A7] shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                <div>
+                                    <span>Sumber Delineasi: <strong>${data.sumber_data || 'DPMD Batola & BIG'}</strong></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            })()}
+                        <div>
+                            <strong class="text-[#0E2A47] font-semibold">Rujukan Spasial Kedinasan:</strong>
+                            <p class="text-[11px] mt-0.5">${data.sumber_data || 'DPMD & Badan Informasi Geospasial (BIG)'}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4. Tombol Bawah Tutup Panel -->
+                <div class="pt-2">
+                    <button type="button" onclick="window.sigapMap.closeDetail()"
+                        class="w-full bg-white hover:bg-[#F3F6F8] text-[#5A6E7D] hover:text-[#0E2A47] font-semibold text-xs py-2.5 px-4 rounded-md border border-[#CBD8E6] transition flex items-center justify-center gap-1.5 shadow-xs">
+                        <span>Tutup Panel Rincian</span>
+                    </button>
+                </div>
+
+            </div>
+        `;
+    }
+
+    focusToSkp(bbox, lat, lng, skpId = null) {
+        if (skpId) {
+            const layer = this.skpLayers.find(l => {
+                const fid = String(l.feature?.id || l.feature?.properties?.id || '');
+                const fName = String(l.feature?.properties?.nama || '').toLowerCase().trim();
+                const targetStr = String(skpId).toLowerCase().trim();
+                return fid === targetStr || fName === targetStr;
+            });
+            if (layer) {
+                this.map.fitBounds(layer.getBounds(), { padding: [60, 60], maxZoom: 14 });
+                layer.openPopup();
+                return;
+            }
+        }
+        if (bbox && bbox.length === 4) {
+            this.fitToFeatureBounds(bbox);
+        } else if (lat && lng) {
+            this.map.flyTo([lat, lng], 13, { duration: 1 });
         }
     }
 
@@ -941,12 +1848,42 @@ class SigapWebGis {
             });
         }
 
+        // Toggle Batas Kawasan SKP Button
+        const btnToggleSkp = document.getElementById('btn-toggle-skp-boundary');
+        if (btnToggleSkp) {
+            btnToggleSkp.addEventListener('click', () => {
+                this.toggleSkpBoundaries();
+            });
+        }
+
+        // Toggle Navigasi (Sembunyikan / Tampilkan Navigasi & Legenda)
+        const btnToggleNav = document.getElementById('btn-toggle-navigation');
+        if (btnToggleNav) {
+            btnToggleNav.addEventListener('click', () => {
+                this.toggleNavigationUI();
+            });
+        }
+
         // Filter Inputs
-        ['filter-regency', 'filter-status', 'filter-decade', 'filter-pattern'].forEach(id => {
+        ['filter-regency', 'filter-decade', 'filter-pattern'].forEach(id => {
             const el = document.getElementById(id);
             if (el) {
                 el.addEventListener('change', () => this.applyFilters());
             }
+        });
+
+        // Filter Status Chips (1-Click Traffic Light Filter)
+        document.querySelectorAll('.gis-status-chip').forEach(chip => {
+            chip.addEventListener('click', () => {
+                const status = chip.dataset.status || 'all';
+                const hiddenInput = document.getElementById('filter-status');
+                if (hiddenInput) {
+                    hiddenInput.value = status;
+                }
+                document.querySelectorAll('.gis-status-chip').forEach(c => c.classList.remove('is-active'));
+                chip.classList.add('is-active');
+                this.applyFilters();
+            });
         });
 
         const searchEl = document.getElementById('filter-search');

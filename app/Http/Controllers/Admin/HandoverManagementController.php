@@ -24,6 +24,15 @@ class HandoverManagementController extends Controller
             $q->where('document_type', 'BAST')->latest();
         }])->withCount('handoverFamilyCards');
 
+        // Hanya tampilkan UPT yang sudah memiliki data penempatan awal
+        $query->where(function ($q) {
+            $q->where('placement_kk', '>', 0)
+              ->orWhere(function ($sub) {
+                  $sub->whereNotNull('placement_year')
+                      ->where('placement_year', '!=', '');
+              });
+        });
+
         // Pencarian Nama UPT, Desa Definitif, atau Nomor UPT
         if ($search = trim($request->input('search', ''))) {
             $uptNumber = null;
@@ -85,6 +94,13 @@ class HandoverManagementController extends Controller
         $growthKk = $totalHandoverKk - $totalPlacementKk;
         $growthPct = $totalPlacementKk > 0 ? round(($growthKk / $totalPlacementKk) * 100, 1) : 0;
         $handedOverUpts = UptLocation::where('handover_kk', '>', 0)->count();
+        $eligibleUptsCount = UptLocation::where(function ($q) {
+            $q->where('placement_kk', '>', 0)
+              ->orWhere(function ($sub) {
+                  $sub->whereNotNull('placement_year')
+                      ->where('placement_year', '!=', '');
+              });
+        })->count();
 
         $stats = [
             'total_placement_pop' => (int) UptLocation::sum('placement_population'),
@@ -94,13 +110,105 @@ class HandoverManagementController extends Controller
             'growth_kk' => $growthKk,
             'growth_pct' => $growthPct,
             'handed_over_upts' => $handedOverUpts,
-            'total_upt' => UptLocation::count(),
+            'total_upt' => $eligibleUptsCount,
             'total_nominal_kk' => (int) \App\Models\UptFamilyCard::handover()->count(),
         ];
 
         $regencies = Regency::withCount('uptLocations')->orderBy('id')->get();
         $years = UptLocation::whereNotNull('handover_year')->where('handover_year', '!=', '')->select('handover_year')->distinct()->orderBy('handover_year')->pluck('handover_year');
-        return view('admin.serah_terima_pemda.serah_terima_pemda', compact('uptLocations', 'regencies', 'years', 'stats'));
+
+        // UPT yang memiliki penempatan awal dan belum diserahterimakan (prioritas utama pendaftaran)
+        $pendingHandoverUpts = UptLocation::with('regency')
+            ->where(function ($q) {
+                $q->where('placement_kk', '>', 0)
+                  ->orWhere(function ($sub) {
+                      $sub->whereNotNull('placement_year')
+                          ->where('placement_year', '!=', '');
+                  });
+            })
+            ->where(function ($q) {
+                $q->where('handover_kk', '<=', 0)
+                  ->where(function ($sub) {
+                      $sub->whereNull('handover_year')->orWhere('handover_year', '');
+                  });
+            })
+            ->orderBy('upt_number')
+            ->get();
+
+        // Seluruh UPT yang memenuhi syarat (memiliki data penempatan)
+        $allEligibleUpts = UptLocation::with('regency')
+            ->where(function ($q) {
+                $q->where('placement_kk', '>', 0)
+                  ->orWhere(function ($sub) {
+                      $sub->whereNotNull('placement_year')
+                          ->where('placement_year', '!=', '');
+                  });
+            })
+            ->orderBy('upt_number')
+            ->get();
+
+        return view('admin.serah_terima_pemda.serah_terima_pemda', compact('uptLocations', 'regencies', 'years', 'stats', 'pendingHandoverUpts', 'allEligibleUpts'));
+    }
+
+    /**
+     * Daftarkan / Catat Data KK Serah Terima Pemda Baru
+     */
+    public function store(Request $request): JsonResponse|RedirectResponse
+    {
+        $validated = $request->validate([
+            'upt_id' => ['required', 'exists:upt_locations,id'],
+            'handover_kk' => ['required', 'integer', 'min:0'],
+            'handover_population' => ['required', 'integer', 'min:0'],
+            'handover_year' => ['nullable', 'string', 'max:50'],
+        ]);
+
+        $upt = UptLocation::findOrFail($validated['upt_id']);
+
+        $oldData = [
+            'handover_kk' => $upt->handover_kk,
+            'handover_population' => $upt->handover_population,
+            'handover_year' => $upt->handover_year,
+        ];
+
+        $upt->update([
+            'handover_kk' => $validated['handover_kk'],
+            'handover_population' => $validated['handover_population'],
+            'handover_year' => $validated['handover_year'],
+        ]);
+
+        AuditLog::log(
+            'STORE_HANDOVER_KK',
+            'upt_locations',
+            $upt->id,
+            [
+                'message' => "Mendaftarkan Data KK Serah Terima Pemda UPT-{$upt->upt_number} ({$upt->upt_name})",
+                'old' => $oldData,
+                'new' => $validated,
+            ]
+        );
+
+        if ($request->wantsJson() || $request->ajax()) {
+            $growth = $upt->handover_kk - $upt->placement_kk;
+            $growthPercent = $upt->placement_kk > 0 ? round(($growth / $upt->placement_kk) * 100, 1) : 0;
+
+            return response()->json([
+                'success' => true,
+                'message' => "Data KK Serah Terima Pemda UPT-{$upt->upt_number} ({$upt->upt_name}) berhasil didaftarkan!",
+                'data' => [
+                    'id' => $upt->id,
+                    'upt_number' => $upt->upt_number,
+                    'handover_kk' => $upt->handover_kk,
+                    'handover_population' => $upt->handover_population,
+                    'handover_year' => $upt->handover_year,
+                    'growth' => $growth,
+                    'growth_pct' => $growthPercent,
+                    'total_handover_kk' => (int) UptLocation::sum('handover_kk'),
+                    'total_handover_pop' => (int) UptLocation::sum('handover_population'),
+                ],
+            ]);
+        }
+
+        return redirect()->back()->with('success', "Data KK Serah Terima Pemda UPT-{$upt->upt_number} ({$upt->upt_name}) berhasil didaftarkan.");
     }
 
     /**
@@ -142,7 +250,7 @@ class HandoverManagementController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => "Data KK Serah Terima Pemda UPT-{$upt->upt_number} ({$upt->upt_name}) berhasil disimpan!",
+                'message' => "Rekapitulasi serah terima pemda UPT-{$upt->upt_number} ({$upt->upt_name}) berhasil diperbarui.",
                 'data' => [
                     'id' => $upt->id,
                     'upt_number' => $upt->upt_number,
@@ -157,7 +265,7 @@ class HandoverManagementController extends Controller
             ]);
         }
 
-        return redirect()->back()->with('success', "Data KK Serah Terima Pemda UPT-{$upt->upt_number} ({$upt->upt_name}) berhasil diperbarui.");
+        return redirect()->back()->with('success', "Rekapitulasi serah terima pemda UPT-{$upt->upt_number} ({$upt->upt_name}) berhasil diperbarui.");
     }
 
     /**
@@ -166,6 +274,15 @@ class HandoverManagementController extends Controller
     public function export(Request $request): StreamedResponse
     {
         $query = UptLocation::with('regency')->orderBy('upt_number');
+
+        // Hanya sertakan UPT yang sudah memiliki data penempatan awal
+        $query->where(function ($q) {
+            $q->where('placement_kk', '>', 0)
+              ->orWhere(function ($sub) {
+                  $sub->whereNotNull('placement_year')
+                      ->where('placement_year', '!=', '');
+              });
+        });
 
         if ($regencyId = $request->input('regency_id')) {
             if ($regencyId !== 'all') {
@@ -245,6 +362,15 @@ class HandoverManagementController extends Controller
         $query = UptLocation::with(['regency', 'documents' => function ($q) {
             $q->where('document_type', 'BAST')->latest();
         }])->orderBy('upt_number');
+
+        // Hanya sertakan UPT yang sudah memiliki data penempatan awal
+        $query->where(function ($q) {
+            $q->where('placement_kk', '>', 0)
+              ->orWhere(function ($sub) {
+                  $sub->whereNotNull('placement_year')
+                      ->where('placement_year', '!=', '');
+              });
+        });
 
         // Pencarian Nama UPT, Desa Definitif, atau Nomor UPT
         if ($search = trim($request->input('search', ''))) {

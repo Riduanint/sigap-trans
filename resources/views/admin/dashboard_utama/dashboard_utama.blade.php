@@ -36,10 +36,39 @@
             @forelse($pendingRequests as $proposal)
                 <article class="atlas-request">
                     <div>
-                        <x-admin.upt-identity :upt="$proposal->uptLocation" />
-                        <div class="atlas-request-meta"><span>{{ $proposal->user?->name ?? 'Pengguna tidak tersedia' }}</span><span>{{ match($proposal->request_type) { 'REGISTRY_SYNC' => 'Registri warga', 'LEGAL_ISSUE' => 'Permasalahan lahan', 'DATA_UPDATE' => 'Perubahan data', default => 'Dokumen pendukung' } }}</span><time datetime="{{ $proposal->created_at->toIso8601String() }}" title="{{ $proposal->created_at->timezone('Asia/Makassar')->format('d M Y H:i') }} WITA">{{ $proposal->created_at->locale('id')->diffForHumans() }}</time></div>
+                        @if($proposal->uptLocation)
+                            <x-admin.upt-identity :upt="$proposal->uptLocation" />
+                        @elseif($proposal->request_type === 'CREATE_UPT')
+                            @php
+                                $pPayload = $proposal->proposed_payload ?? [];
+                                $regName = \App\Models\Regency::find($pPayload['regency_id'] ?? null)?->name ?? 'Kabupaten belum dipilih';
+                            @endphp
+                            <div class="atlas-identity">
+                                <span class="atlas-code"><span class="atlas-status atlas-status--info" style="font-size: 0.68rem; padding: 1px 6px;">+ USULAN UPT BARU</span> · {{ $regName }}</span>
+                                <strong>{{ $pPayload['upt_name'] ?? 'Pendaftaran UPT Baru' }}</strong>
+                                <span class="atlas-muted">Rencana Desa: {{ $pPayload['current_village_name'] ?? '-' }}</span>
+                            </div>
+                        @else
+                            <x-admin.upt-identity :upt="null" />
+                        @endif
+                        <div class="atlas-request-meta">
+                            <span>{{ $proposal->user?->name ?? 'Pengguna tidak tersedia' }}</span>
+                            <span>{{ match($proposal->request_type) {
+                                'CREATE_UPT' => 'Pendaftaran UPT baru',
+                                'REGISTRY_SYNC' => 'Registri warga',
+                                'LEGAL_ISSUE' => 'Permasalahan lahan',
+                                'DATA_UPDATE' => 'Perubahan data',
+                                default => 'Dokumen pendukung'
+                            } }}</span>
+                            <time datetime="{{ $proposal->created_at->toIso8601String() }}" title="{{ $proposal->created_at->timezone('Asia/Makassar')->format('d M Y H:i') }} WITA">{{ $proposal->created_at->locale('id')->diffForHumans() }}</time>
+                        </div>
                     </div>
-                    <div class="atlas-request-actions"><button type="button" class="atlas-icon-button" data-atlas-location="{{ $proposal->uptLocation->id }}" aria-label="Lihat lokasi {{ $proposal->uptLocation->upt_name }}"><x-admin.icon name="pin" /></button><a class="atlas-button atlas-button--primary" href="{{ route('admin.verification.show', $proposal->id) }}">Periksa <x-admin.icon name="arrow" /></a></div>
+                    <div class="atlas-request-actions">
+                        @if($proposal->uptLocation)
+                            <button type="button" class="atlas-icon-button" data-atlas-location="{{ $proposal->uptLocation->id }}" aria-label="Lihat lokasi {{ $proposal->uptLocation->upt_name }}"><x-admin.icon name="pin" /></button>
+                        @endif
+                        <a class="atlas-button atlas-button--primary" href="{{ route('admin.verification.show', $proposal->id) }}">Periksa <x-admin.icon name="arrow" /></a>
+                    </div>
                 </article>
             @empty
                 <div class="atlas-empty"><strong>Tidak ada usulan menunggu verifikasi.</strong><p>Pengajuan baru dari kabupaten akan muncul di sini.</p><a class="atlas-link" href="{{ route('admin.verification.index') }}">Lihat riwayat pengajuan →</a></div>
@@ -56,9 +85,20 @@
     </div>
     <section class="atlas-panel">
         <div class="atlas-panel-heading"><div><h2>UPT yang perlu perhatian</h2><p class="atlas-muted">Lokasi berstatus kritis untuk koordinasi dan mediasi pertanahan.</p></div><a href="{{ route('admin.upt.index', array_merge(request()->only('regency_id'), ['status' => 'critical'])) }}">Buka daftar →</a></div>
-        <div class="atlas-table-scroll"><table class="atlas-table"><thead><tr><th scope="col">Lokasi</th><th scope="col">Catatan permasalahan</th><th scope="col">Status</th><th scope="col">Tindakan</th></tr></thead><tbody>
+        <div class="atlas-table-scroll"><table class="atlas-table"><thead><tr><th scope="col">Lokasi</th><th scope="col">Catatan permasalahan</th><th scope="col">Status</th><th scope="col" style="text-align: center; width: 70px;">AKSI</th></tr></thead><tbody>
             @forelse($priorityCases->take(5) as $upt)
-                <tr><td><x-admin.upt-identity :upt="$upt" /></td><td class="atlas-reading">{{ $upt->issue_note ?: 'Catatan permasalahan belum tersedia.' }}</td><td><x-admin.status :status="$upt->issue_status" /></td><td><button class="atlas-button" type="button" data-atlas-location="{{ $upt->id }}"><x-admin.icon name="pin" /> Lihat lokasi</button></td></tr>
+                <tr>
+                    <td><x-admin.upt-identity :upt="$upt" /></td>
+                    <td class="atlas-reading">{{ $upt->issue_note ?: 'Catatan permasalahan belum tersedia.' }}</td>
+                    <td><x-admin.status :status="$upt->issue_status" /></td>
+                    <td style="text-align: center;">
+                        <div class="atlas-actions-cell" style="justify-content: center;">
+                            <button type="button" class="atlas-action-icon atlas-action-icon--pin" data-atlas-location="{{ $upt->id }}" title="Lihat Lokasi di Peta" aria-label="Lihat Lokasi">
+                                <x-admin.icon name="pin" />
+                            </button>
+                        </div>
+                    </td>
+                </tr>
             @empty
                 <tr><td colspan="4"><div class="atlas-empty">Tidak ada UPT berstatus kritis pada wilayah ini.</div></td></tr>
             @endforelse

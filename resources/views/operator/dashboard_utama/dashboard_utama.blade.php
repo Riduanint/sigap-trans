@@ -1,6 +1,6 @@
 @extends('layouts.admin')
 
-@section('atlas_title', $selectedRegency ? 'Kabupaten ' . $selectedRegency->name : 'Seluruh wilayah Kalsel')
+@section('atlas_title', $selectedRegency ? 'Kabupaten ' . $selectedRegency->name : ($regencies->count() === 9 ? 'Seluruh wilayah Kalsel' : 'Wilayah publikasi Kalsel (' . $regencies->count() . ' Kabupaten)'))
 @section('atlas_subtitle', 'Operator ' . ($user->name ?? '-') . ' · NIP ' . ($user->nip ?? '-') . ' · Pemutakhiran data lapangan & pengajuan berkas BAST')
 @section('atlas_actions')
     <a class="atlas-button atlas-button--primary" href="{{ route('operator.requests.create') }}"><x-admin.icon name="plus" /> Ajukan draf usulan</a>
@@ -27,7 +27,7 @@
         <div class="atlas-field">
             <label for="op-regency">Cakupan wilayah</label>
             <select id="op-regency" name="regency_id" onchange="this.form.submit()">
-                <option value="all" @selected($selectedRegencyId === 'all')>Semua kabupaten Kalsel</option>
+                <option value="all" @selected($selectedRegencyId === 'all')>{{ $regencies->count() === 9 ? 'Semua kabupaten Kalsel' : 'Semua kabupaten aktif (' . $regencies->count() . ')' }}</option>
                 @foreach($regencies as $regency)
                     <option value="{{ $regency->id }}" @selected((string) $selectedRegencyId === (string) $regency->id)>{{ $regency->name }}</option>
                 @endforeach
@@ -36,7 +36,7 @@
     </form>
 
     <div class="atlas-panel-heading">
-        <h2>Daftar UPT {{ $selectedRegency ? 'Kabupaten ' . $selectedRegency->name : 'seluruh wilayah' }}</h2>
+        <h2>Daftar UPT {{ $selectedRegency ? 'Kabupaten ' . $selectedRegency->name : ($regencies->count() === 9 ? 'seluruh wilayah' : 'wilayah publikasi') }}</h2>
         <a class="atlas-link" href="{{ route('operator.upt.index') }}">Buka filter lengkap →</a>
     </div>
     <div class="atlas-table-scroll">
@@ -49,7 +49,7 @@
                     <th scope="col">Serah terima</th>
                     <th scope="col">Permasalahan</th>
                     <th scope="col">Sertifikasi SHM</th>
-                    <th scope="col">Tindakan</th>
+                    <th scope="col" style="text-align: center; width: 80px;">AKSI</th>
                 </tr>
             </thead>
             <tbody>
@@ -67,10 +67,14 @@
                         <td class="tabular-nums">{{ number_format($upt->handover_kk, 0, ',', '.') }} KK</td>
                         <td><x-admin.status :status="$upt->issue_status" /></td>
                         <td>{{ $upt->shm_status ?: 'Belum tercatat' }}</td>
-                        <td>
-                            <div class="atlas-inline">
-                                <a class="atlas-link" href="{{ route('operator.requests.create', ['upt_id' => $upt->id]) }}">Usulan</a>
-                                <a class="atlas-link" href="{{ route('operator.upt.registri', $upt->id) }}">Registri</a>
+                        <td style="text-align: center;">
+                            <div class="atlas-actions-cell" style="justify-content: center; gap: 6px;">
+                                <a href="{{ route('operator.requests.create', ['upt_id' => $upt->id]) }}" class="atlas-action-icon atlas-action-icon--create" title="Ajukan Usulan Pemutakhiran" aria-label="Usulan">
+                                    <x-admin.icon name="plus" />
+                                </a>
+                                <a href="{{ route('operator.upt.registri', $upt->id) }}" class="atlas-action-icon atlas-action-icon--info" title="Buku Registri Warga" aria-label="Registri">
+                                    <x-admin.icon name="folder" />
+                                </a>
                             </div>
                         </td>
                     </tr>
@@ -108,7 +112,7 @@
                     <th scope="col">Status</th>
                     <th scope="col">Catatan verifikator</th>
                     <th scope="col">Diajukan</th>
-                    <th scope="col"><span class="sr-only">Tindakan</span></th>
+                    <th scope="col" style="text-align: center; width: 60px;">AKSI</th>
                 </tr>
             </thead>
             <tbody>
@@ -121,11 +125,21 @@
                                     <span class="atlas-code">UPT-{{ str_pad($upt->upt_number, 3, '0', STR_PAD_LEFT) }} · {{ $upt->regency?->name ?? '-' }}</span>
                                     <strong>{{ $upt->upt_name }}</strong>
                                 </div>
+                            @elseif($req->request_type === 'CREATE_UPT')
+                                @php
+                                    $pPayload = $req->proposed_payload ?? [];
+                                    $regName = \App\Models\Regency::find($pPayload['regency_id'] ?? null)?->name ?? 'Kabupaten belum dipilih';
+                                @endphp
+                                <div class="atlas-identity">
+                                    <span class="atlas-code"><span class="atlas-status atlas-status--info" style="font-size: 0.65rem; padding: 1px 5px;">+ USULAN BARU</span> · {{ $regName }}</span>
+                                    <strong>{{ $pPayload['upt_name'] ?? 'Pendaftaran UPT Baru' }}</strong>
+                                </div>
                             @else
                                 <span class="atlas-muted">UPT tidak ditemukan</span>
                             @endif
                         </td>
                         <td>{{ match ($req->request_type) {
+                            'CREATE_UPT' => 'Pendaftaran UPT baru',
                             'REGISTRY_SYNC' => 'Buku registri warga',
                             'DATA_UPDATE' => 'Data lapangan',
                             'LEGAL_ISSUE' => 'Masalah lahan',
@@ -135,7 +149,13 @@
                         <td><x-admin.status :status="$req->status" /></td>
                         <td class="atlas-reading" style="font-size: 13px;">{{ $req->reviewer_note ? \Illuminate\Support\Str::limit($req->reviewer_note, 80) : '—' }}</td>
                         <td class="atlas-muted" style="white-space: nowrap;">{{ $req->created_at->format('d M Y') }}</td>
-                        <td><a class="atlas-link" href="{{ route('operator.requests.show', $req->id) }}">Detail</a></td>
+                        <td style="text-align: center;">
+                            <div class="atlas-actions-cell" style="justify-content: center;">
+                                <a href="{{ route('operator.requests.show', $req->id) }}" class="atlas-action-icon atlas-action-icon--detail" title="Lihat Detail Usulan" aria-label="Detail">
+                                    <x-admin.icon name="eye" />
+                                </a>
+                            </div>
+                        </td>
                     </tr>
                 @empty
                     <tr>

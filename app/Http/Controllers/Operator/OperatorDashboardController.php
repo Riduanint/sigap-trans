@@ -16,14 +16,23 @@ class OperatorDashboardController extends Controller
     public function index(Request $request): View
     {
         $user = auth()->user();
-        $regencies = \App\Models\Regency::withCount('uptLocations')->orderBy('id')->get();
+        $regencies = \App\Models\Regency::where('is_visible', true)
+            ->withCount('uptLocations')
+            ->orderBy('id')
+            ->get();
+        $visibleRegencyIds = $regencies->pluck('id')->all();
 
-        $selectedRegencyId = $request->get('regency_id', 'all');
+        $rawRegencyId = $request->get('regency_id', 'all');
+        $selectedRegencyId = ($rawRegencyId !== 'all' && in_array((int) $rawRegencyId, $visibleRegencyIds, true))
+            ? (int) $rawRegencyId
+            : 'all';
 
-        $uptQuery = UptLocation::with('regency');
-        if ($selectedRegencyId !== 'all' && is_numeric($selectedRegencyId)) {
-            $uptQuery->where('regency_id', (int) $selectedRegencyId);
-            $selectedRegency = $regencies->firstWhere('id', (int) $selectedRegencyId);
+        $uptQuery = UptLocation::whereHas('regency', fn($q) => $q->where('is_visible', true))
+            ->with('regency');
+
+        if ($selectedRegencyId !== 'all') {
+            $uptQuery->where('regency_id', $selectedRegencyId);
+            $selectedRegency = $regencies->firstWhere('id', $selectedRegencyId);
         } else {
             $selectedRegency = null;
         }

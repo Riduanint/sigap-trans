@@ -44,7 +44,7 @@
 
 <section class="atlas-panel">
     <div class="atlas-panel-heading"><h2>Perbandingan kabupaten</h2><span class="atlas-muted">{{ $regencies->count() }} kabupaten · {{ number_format($regencies->sum('upt_locations_count'), 0, ',', '.') }} UPT</span></div>
-    <div class="atlas-table-scroll"><table class="atlas-table"><thead><tr><th scope="col">Kabupaten</th><th scope="col">UPT</th><th scope="col">KK penempatan</th><th scope="col">KK serah terima</th><th scope="col">Selisih</th><th scope="col">Kondisi lahan</th><th scope="col">Tindakan</th></tr></thead><tbody>
+    <div class="atlas-table-scroll"><table class="atlas-table"><thead><tr><th scope="col">Kabupaten</th><th scope="col">UPT</th><th scope="col">KK penempatan</th><th scope="col">KK serah terima</th><th scope="col">Selisih</th><th scope="col">Kondisi lahan</th><th scope="col" style="text-align: center; width: 70px;">AKSI</th></tr></thead><tbody>
         @foreach($regencies as $r)
             <tr>
                 <td><div class="atlas-identity"><strong>{{ $r->name }}</strong><span class="atlas-muted">Ibukota: {{ $r->capital_city ?? 'Belum tercatat' }}</span></div></td>
@@ -53,7 +53,13 @@
                 <td class="tabular-nums">{{ number_format($r->total_handover_kk ?? 0, 0, ',', '.') }}</td>
                 <td class="tabular-nums">{{ $r->growth_kk >= 0 ? '+' : '' }}{{ number_format($r->growth_kk, 0, ',', '.') }}</td>
                 <td><span class="atlas-muted">{{ $r->clean_count }} clean · {{ $r->warning_count }} monitoring · {{ $r->critical_count }} kritis</span></td>
-                <td><a class="atlas-link" href="{{ route('admin.upt.index', ['regency_id' => $r->id]) }}">Lihat UPT →</a></td>
+                <td style="text-align: center;">
+                    <div class="atlas-actions-cell" style="justify-content: center;">
+                        <a href="{{ route('admin.upt.index', ['regency_id' => $r->id]) }}" class="atlas-action-icon atlas-action-icon--detail" title="Lihat UPT di {{ $r->name }}" aria-label="Lihat UPT">
+                            <x-admin.icon name="eye" />
+                        </a>
+                    </div>
+                </td>
             </tr>
         @endforeach
     </tbody></table></div>

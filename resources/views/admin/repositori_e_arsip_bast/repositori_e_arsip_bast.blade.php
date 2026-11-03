@@ -28,14 +28,13 @@
             <div class="atlas-field atlas-field--search"><label for="doc-search">Cari arsip</label><input id="doc-search" name="search" value="{{ request('search') }}" placeholder="Nomor register, nama berkas, atau UPT" type="search"></div>
             <div class="atlas-field"><label for="doc-type">Jenis berkas</label><select id="doc-type" name="type"><option value="all">Semua jenis</option>@foreach($typeLabels as $value => $label)<option value="{{ $value }}" @selected(request('type') === $value)>{{ $label }}</option>@endforeach</select></div>
             <div class="atlas-field"><label for="doc-regency">Kabupaten</label><select id="doc-regency" name="regency_id"><option value="all">Semua kabupaten</option>@foreach($regencies as $regency)<option value="{{ $regency->id }}" @selected(request('regency_id') == $regency->id)>{{ $regency->name }}</option>@endforeach</select></div>
-            <button class="atlas-button atlas-button--primary">Terapkan</button>
         </div>
     </form>
     @if($activeFilters->isNotEmpty())
         <div class="atlas-filter-chips">@foreach($activeFilters as $key => $value)<a href="{{ route($docsIndex, request()->except([$key, 'page'])) }}" aria-label="Hapus filter {{ $key }}">{{ $key === 'type' ? ($typeLabels[$value] ?? $value) : ($key === 'regency_id' ? $regencies->firstWhere('id', $value)?->name : $value) }} <span aria-hidden="true">×</span></a>@endforeach<a href="{{ route($docsIndex) }}">Hapus semua filter</a></div>
     @endif
     <div class="atlas-panel-heading"><h2>{{ number_format($documents->total(), 0, ',', '.') }} berkas ditemukan</h2><span class="atlas-muted">Unggahan PDF maksimal 20 MB per berkas</span></div>
-    <div class="atlas-table-scroll"><table class="atlas-table"><thead><tr><th scope="col">Jenis & lokasi</th><th scope="col">Nomor register</th><th scope="col">Nama berkas</th><th scope="col">Ukuran</th><th scope="col">Pengunggah</th><th scope="col">Tindakan</th></tr></thead><tbody>
+    <div class="atlas-table-scroll"><table class="atlas-table"><thead><tr><th scope="col">Jenis & lokasi</th><th scope="col">Nomor register</th><th scope="col">Nama berkas</th><th scope="col">Ukuran</th><th scope="col">Pengunggah</th><th scope="col" style="text-align: center; width: 100px;">AKSI</th></tr></thead><tbody>
         @forelse($documents as $doc)
             <tr>
                 <td><div class="atlas-identity"><span class="atlas-code">{{ $typeLabels[$doc->document_type] ?? $doc->document_type }}</span><a href="{{ route($uptLinkRoute, $uptLinkParams($doc->uptLocation?->id)) }}">UPT-{{ str_pad($doc->uptLocation?->upt_number ?? 0, 3, '0', STR_PAD_LEFT) }} · {{ $doc->uptLocation?->upt_name }}</a><span class="atlas-muted">{{ $doc->uptLocation?->regency?->name ?? 'Kabupaten belum tercatat' }}</span></div></td>
@@ -43,14 +42,18 @@
                 <td><span title="{{ $doc->file_name }}">{{ \Illuminate\Support\Str::limit($doc->file_name, 42) }}</span></td>
                 <td class="tabular-nums">{{ number_format($doc->file_size_kb, 0, ',', '.') }} KB</td>
                 <td>{{ $doc->uploader?->name ?: 'Super Admin' }}</td>
-                <td>
-                    <div class="atlas-inline">
-                        <a class="atlas-link" href="{{ route($docsDownload, $doc->id) }}">Unduh</a>
+                <td style="text-align: center;">
+                    <div class="atlas-actions-cell" style="justify-content: center; gap: 6px;">
+                        <a href="{{ route($docsDownload, $doc->id) }}" class="atlas-action-icon atlas-action-icon--download" title="Unduh Berkas Arsip" aria-label="Unduh">
+                            <x-admin.icon name="download" />
+                        </a>
                         @if($canManage)
-                        <form method="POST" action="{{ route('admin.documents.destroy', $doc->id) }}" onsubmit="return confirm('Hapus arsip digital ini? Tindakan ini tidak dapat dibatalkan.');">
+                        <form method="POST" action="{{ route('admin.documents.destroy', $doc->id) }}" data-confirm="Hapus arsip digital '{{ $doc->file_name }}'? Tindakan ini tidak dapat dibatalkan." data-confirm-title="Konfirmasi Hapus Arsip" data-confirm-type="danger" data-confirm-button="Ya, Hapus Arsip">
                             @csrf
                             @method('DELETE')
-                            <button type="submit" class="atlas-link" style="color: var(--atlas-critical);">Hapus</button>
+                            <button type="submit" class="atlas-action-icon atlas-action-icon--delete" title="Hapus Arsip Digital" aria-label="Hapus">
+                                <x-admin.icon name="trash" />
+                            </button>
                         </form>
                         @endif
                     </div>
@@ -71,7 +74,7 @@
             <div><h3 id="atlas-upload-dialog-title">Unggah arsip digital</h3><p>Simpan berkas resmi ke registrasi UPT</p></div>
             <button type="button" class="atlas-icon-button" data-atlas-dialog-close aria-label="Tutup dialog"><x-admin.icon name="close" /></button>
         </div>
-        <form method="POST" action="{{ route('admin.documents.upload') }}" enctype="multipart/form-data" class="atlas-dialog__body">
+        <form method="POST" action="{{ route('admin.documents.upload') }}" enctype="multipart/form-data" class="atlas-dialog__body" data-confirm="Unggah dan simpan berkas digital ini ke repositori resmi?" data-confirm-title="Konfirmasi Unggah Berkas" data-confirm-button="Ya, Unggah">
             @csrf
             <div class="atlas-field">
                 <label for="doc-upload-upt">Lokasi UPT <span aria-hidden="true">*</span></label>

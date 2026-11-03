@@ -581,26 +581,39 @@ function renderRegistryTable(cards) {
     tableBody.innerHTML = html;
 }
 
+let regSearchTimer = null;
 /**
- * Filter registri kartu di client side
+ * Filter registri kartu di client side dengan debounce dan skeleton loading
  */
 function filterRegistryCards() {
-    const keyword = document.getElementById('reg-search').value.toLowerCase().trim();
-    if (!keyword) {
-        renderRegistryTable(currentCardsData);
-        return;
+    clearTimeout(regSearchTimer);
+    const tableBody = document.getElementById('reg-table-body');
+    if (tableBody && currentCardsData && currentCardsData.length > 0) {
+        tableBody.innerHTML = `
+            <tr class="atlas-skeleton-row"><td colspan="10" class="py-4"><div class="atlas-skeleton-line" style="width:85%; margin:auto;"></div></td></tr>
+            <tr class="atlas-skeleton-row"><td colspan="10" class="py-4"><div class="atlas-skeleton-line" style="width:70%; margin:auto;"></div></td></tr>
+            <tr class="atlas-skeleton-row"><td colspan="10" class="py-4"><div class="atlas-skeleton-line" style="width:90%; margin:auto;"></div></td></tr>
+        `;
     }
 
-    const filtered = currentCardsData.filter(c => {
-        return (c.head_of_family_name && c.head_of_family_name.toLowerCase().includes(keyword)) ||
-               (c.family_card_number && c.family_card_number.toLowerCase().includes(keyword)) ||
-               (c.nik && c.nik.toLowerCase().includes(keyword)) ||
-               (c.housing_block && c.housing_block.toLowerCase().includes(keyword)) ||
-               (c.origin_province && c.origin_province.toLowerCase().includes(keyword)) ||
-               (c.origin_regency && c.origin_regency.toLowerCase().includes(keyword));
-    });
+    regSearchTimer = setTimeout(() => {
+        const keyword = document.getElementById('reg-search').value.toLowerCase().trim();
+        if (!keyword) {
+            renderRegistryTable(currentCardsData);
+            return;
+        }
 
-    renderRegistryTable(filtered);
+        const filtered = currentCardsData.filter(c => {
+            return (c.head_of_family_name && c.head_of_family_name.toLowerCase().includes(keyword)) ||
+                   (c.family_card_number && c.family_card_number.toLowerCase().includes(keyword)) ||
+                   (c.nik && c.nik.toLowerCase().includes(keyword)) ||
+                   (c.housing_block && c.housing_block.toLowerCase().includes(keyword)) ||
+                   (c.origin_province && c.origin_province.toLowerCase().includes(keyword)) ||
+                   (c.origin_regency && c.origin_regency.toLowerCase().includes(keyword));
+        });
+
+        renderRegistryTable(filtered);
+    }, 220);
 }
 
 /**
@@ -657,7 +670,11 @@ function updateRegistryStats(stats, upt) {
                         <span class="atlas-status atlas-status--warning"><span aria-hidden="true"></span>Menunggu verifikasi (#${upt.pending_validation_id})</span>
                     `;
                     btnSync.onclick = function() {
-                        alert(`Pengajuan pengesahan buku registri UPT ini sedang ditinjau oleh Super Admin Provinsi Kalsel (draf #${upt.pending_validation_id}). Anda tetap dapat menambahkan atau memperbarui data warga di lapangan.`);
+                        if (window.showToast) {
+                            window.showToast(`Pengajuan pengesahan buku registri UPT ini sedang ditinjau oleh Super Admin Provinsi Kalsel (draf #${upt.pending_validation_id}).`, 'info');
+                        } else {
+                            alert(`Pengajuan pengesahan buku registri UPT ini sedang ditinjau oleh Super Admin Provinsi Kalsel (draf #${upt.pending_validation_id}). Anda tetap dapat menambahkan atau memperbarui data warga di lapangan.`);
+                        }
                     };
                 } else {
                     btnSync.className = 'atlas-button atlas-button--primary';
@@ -683,6 +700,35 @@ function updateRegistryStats(stats, upt) {
             badgeRow.textContent = '0 KK (belum diisi)';
             badgeRow.className = 'atlas-status';
         }
+    }
+
+    // Perbarui kartu Profil UPT (master_data_upt.show) jika ada di halaman
+    const profileKk = document.getElementById(`profile-stat-${currentRegistryStage}-kk`);
+    const profilePop = document.getElementById(`profile-stat-${currentRegistryStage}-pop`);
+    if (profileKk) profileKk.textContent = `${Number(stats.total_kk).toLocaleString('id-ID')} KK`;
+    if (profilePop) profilePop.textContent = `${Number(stats.total_jiwa).toLocaleString('id-ID')} jiwa`;
+
+    const profileDiff = document.getElementById('profile-diff-kk');
+    if (profileDiff) {
+        const pKkEl = document.getElementById('profile-stat-placement-kk');
+        const hKkEl = document.getElementById('profile-stat-handover-kk');
+        let pKk = currentRegistryStage === 'placement' ? stats.total_kk : (pKkEl ? (parseInt(pKkEl.textContent.replace(/\D/g, '')) || 0) : 0);
+        let hKk = currentRegistryStage === 'handover' ? stats.total_kk : (hKkEl ? (parseInt(hKkEl.textContent.replace(/\D/g, '')) || 0) : 0);
+        profileDiff.textContent = `Selisih serah terima–penempatan: ${Number(hKk - pKk).toLocaleString('id-ID')} KK. Selisih rekap tidak menunjukkan penyebab perubahan penduduk.`;
+    }
+
+    if (window.onProfileStatsUpdated) {
+        window.onProfileStatsUpdated(currentRegistryStage, stats.total_kk, stats.total_jiwa);
+    }
+
+    // Perbarui juga sel tabel utama di background (penempatan_awal / serah_terima_pemda)
+    const cellKk = document.getElementById(`cell-kk-${currentRegistryUptId}`);
+    const cellPop = document.getElementById(`cell-pop-${currentRegistryUptId}`);
+    const cellRatio = document.getElementById(`cell-ratio-${currentRegistryUptId}`);
+    if (cellKk) cellKk.innerHTML = `${Number(stats.total_kk).toLocaleString('id-ID')} <span class="text-[10px] font-normal text-[#5A6E7D]">KK</span>`;
+    if (cellPop) cellPop.textContent = Number(stats.total_jiwa).toLocaleString('id-ID');
+    if (cellRatio && stats.total_kk > 0) {
+        cellRatio.textContent = (stats.total_jiwa / stats.total_kk).toFixed(2).replace('.', ',');
     }
 }
 
@@ -763,11 +809,20 @@ function closeCardFormModal() {
 /**
  * Tandai berkas lama untuk dihapus pada saat edit
  */
-function markDeleteExistingFile() {
-    if (confirm('Apakah Anda yakin ingin menghapus berkas lampiran pada KK ini?')) {
-        document.getElementById('form-delete-document').value = 'true';
-        document.getElementById('existing-file-container').classList.add('hidden');
+async function markDeleteExistingFile() {
+    if (window.confirmAtlas) {
+        const ok = await window.confirmAtlas({
+            title: 'Hapus Berkas KK',
+            message: 'Apakah Anda yakin ingin menghapus berkas lampiran pada KK ini?',
+            type: 'danger',
+            confirmText: 'Ya, Hapus Berkas'
+        });
+        if (!ok) return;
+    } else if (!confirm('Apakah Anda yakin ingin menghapus berkas lampiran pada KK ini?')) {
+        return;
     }
+    document.getElementById('form-delete-document').value = 'true';
+    document.getElementById('existing-file-container').classList.add('hidden');
 }
 
 /**
@@ -782,11 +837,21 @@ function handleFileChange(e) {
 /**
  * Submit Simpan / Update Form 1 KK (Multipart FormData)
  */
-function submitCardForm(e) {
+async function submitCardForm(e) {
     e.preventDefault();
 
     const cardId = document.getElementById('form-card-id').value;
     const isEdit = Boolean(cardId);
+
+    if (window.confirmAtlas) {
+        const ok = await window.confirmAtlas({
+            title: isEdit ? 'Konfirmasi Pembaruan KK' : 'Konfirmasi Tambah KK',
+            message: isEdit ? 'Simpan seluruh perubahan data kartu keluarga ini?' : 'Tambahkan data kartu keluarga baru ini ke buku registri?',
+            type: isEdit ? 'warning' : 'primary',
+            confirmText: isEdit ? 'Ya, Perbarui' : 'Ya, Simpan'
+        });
+        if (!ok) return;
+    }
 
     const formData = new FormData();
     if (isEdit) {
@@ -838,12 +903,12 @@ function submitCardForm(e) {
             fetchRegistryCards();
             showToast(data.message);
         } else {
-            alert('Gagal menyimpan: ' + (data.message || 'Terjadi kesalahan'));
+            showToast('Gagal menyimpan: ' + (data.message || 'Terjadi kesalahan'), false);
         }
     })
     .catch(err => {
         console.error(err);
-        alert('Gagal menyimpan data KK. Periksa kelengkapan formulir Anda.');
+        showToast('Gagal menyimpan data KK. Periksa kelengkapan formulir Anda.', false);
     })
     .finally(() => {
         btn.disabled = false;
@@ -854,8 +919,16 @@ function submitCardForm(e) {
 /**
  * Hapus 1 KK dari Registri
  */
-function deleteCard(cardId, name) {
-    if (!confirm(`Apakah Anda yakin ingin menghapus data KK '${name}' dari buku registri?`)) {
+async function deleteCard(cardId, name) {
+    if (window.confirmAtlas) {
+        const ok = await window.confirmAtlas({
+            title: 'Hapus Data KK',
+            message: `Apakah Anda yakin ingin menghapus data KK '${name}' dari buku registri? Tindakan ini tidak dapat dibatalkan.`,
+            type: 'danger',
+            confirmText: 'Ya, Hapus Data KK'
+        });
+        if (!ok) return;
+    } else if (!confirm(`Apakah Anda yakin ingin menghapus data KK '${name}' dari buku registri?`)) {
         return;
     }
 
@@ -874,12 +947,12 @@ function deleteCard(cardId, name) {
             fetchRegistryCards();
             showToast(data.message);
         } else {
-            alert('Gagal menghapus: ' + (data.message || 'Terjadi kesalahan'));
+            showToast('Gagal menghapus: ' + (data.message || 'Terjadi kesalahan'), false);
         }
     })
     .catch(err => {
         console.error(err);
-        alert('Gagal menghapus data KK.');
+        showToast('Gagal menghapus data KK.', false);
     });
 }
 
@@ -903,7 +976,7 @@ function submitImportCards(e) {
 
     const fileInput = document.getElementById('import-file-input');
     if (!fileInput.files.length) {
-        alert('Pilih file CSV atau Excel terlebih dahulu.');
+        showToast('Pilih file CSV atau Excel terlebih dahulu.', false);
         return;
     }
 
@@ -933,12 +1006,12 @@ function submitImportCards(e) {
             fetchRegistryCards();
             showToast(data.message);
         } else {
-            alert('Gagal import: ' + (data.message || 'Format file tidak sesuai'));
+            showToast('Gagal import: ' + (data.message || 'Format file tidak sesuai'), false);
         }
     })
     .catch(err => {
         console.error(err);
-        alert('Terjadi kesalahan saat memproses file import.');
+        showToast('Terjadi kesalahan saat memproses file import.', false);
     })
     .finally(() => {
         btn.disabled = false;
@@ -949,8 +1022,16 @@ function submitImportCards(e) {
 /**
  * Sinkronkan Total Registri ke Rekap UPT di Tabel Utama
  */
-function syncRegistryToUpt() {
-    if (!confirm('Apakah Anda ingin menyinkronkan total KK dan Jiwa dari registri ini ke baris rekap UPT di tabel utama?')) {
+async function syncRegistryToUpt() {
+    if (window.confirmAtlas) {
+        const ok = await window.confirmAtlas({
+            title: 'Sinkronisasi Rekap UPT',
+            message: 'Apakah Anda ingin menyinkronkan total KK dan Jiwa dari registri ini ke baris rekap UPT di tabel utama?',
+            type: 'clean',
+            confirmText: 'Ya, Sinkronkan'
+        });
+        if (!ok) return;
+    } else if (!confirm('Apakah Anda ingin menyinkronkan total KK dan Jiwa dari registri ini ke baris rekap UPT di tabel utama?')) {
         return;
     }
 
@@ -986,6 +1067,21 @@ function syncRegistryToUpt() {
                 cellRatio.textContent = r;
             }
 
+            // Perbarui kartu Profil UPT (master_data_upt.show) jika ada di halaman
+            const profileKk = document.getElementById(`profile-stat-${currentRegistryStage}-kk`);
+            const profilePop = document.getElementById(`profile-stat-${currentRegistryStage}-pop`);
+            if (profileKk) profileKk.textContent = `${Number(data.data.count_kk).toLocaleString('id-ID')} KK`;
+            if (profilePop) profilePop.textContent = `${Number(data.data.count_pop).toLocaleString('id-ID')} jiwa`;
+
+            const profileDiff = document.getElementById('profile-diff-kk');
+            if (profileDiff) {
+                const pKkEl = document.getElementById('profile-stat-placement-kk');
+                const hKkEl = document.getElementById('profile-stat-handover-kk');
+                let pKk = currentRegistryStage === 'placement' ? data.data.count_kk : (pKkEl ? (parseInt(pKkEl.textContent.replace(/\D/g, '')) || 0) : 0);
+                let hKk = currentRegistryStage === 'handover' ? data.data.count_kk : (hKkEl ? (parseInt(hKkEl.textContent.replace(/\D/g, '')) || 0) : 0);
+                profileDiff.textContent = `Selisih serah terima–penempatan: ${Number(hKk - pKk).toLocaleString('id-ID')} KK. Selisih rekap tidak menunjukkan penyebab perubahan penduduk.`;
+            }
+
             // Perbarui KPI atas
             if (currentRegistryStage === 'placement' && data.data.total_all_placement_kk) {
                 const kpiKk = document.getElementById('kpi-total-kk');
@@ -1004,12 +1100,12 @@ function syncRegistryToUpt() {
 
             showToast(data.message);
         } else {
-            alert('Gagal menyinkronkan: ' + (data.message || 'Terjadi kesalahan'));
+            showToast('Gagal menyinkronkan: ' + (data.message || 'Terjadi kesalahan'), false);
         }
     })
     .catch(err => {
         console.error(err);
-        alert('Gagal menyinkronkan angka rekap.');
+        showToast('Gagal menyinkronkan angka rekap.', false);
     })
     .finally(() => {
         btn.disabled = false;
@@ -1022,7 +1118,7 @@ function syncRegistryToUpt() {
 function openSubmitValidationModal() {
     if (!currentRegistryUptId) return;
     if (!currentCardsData || currentCardsData.length === 0) {
-        alert('Buku registri masih kosong (0 KK). Tambahkan minimal 1 data KK sebelum mengajukan pengesahan ke Provinsi.');
+        showToast('Buku registri masih kosong (0 KK). Tambahkan minimal 1 data KK sebelum mengajukan pengesahan ke Provinsi.', false);
         return;
     }
     
@@ -1046,9 +1142,19 @@ function closeSubmitValidationModal() {
     if (modal) modal.classList.add('hidden');
 }
 
-function submitValidationToProvinsi(e) {
+async function submitValidationToProvinsi(e) {
     if (e) e.preventDefault();
     if (!currentRegistryUptId) return;
+
+    if (window.confirmAtlas) {
+        const ok = await window.confirmAtlas({
+            title: 'Konfirmasi Pengajuan Pengesahan',
+            message: 'Kirimkan buku registri warga UPT ini ke Super Admin Provinsi untuk diverifikasi?',
+            type: 'clean',
+            confirmText: 'Ya, Kirim Pengajuan'
+        });
+        if (!ok) return;
+    }
 
     const note = document.getElementById('val-submit-note')?.value.trim() || '';
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}';
@@ -1077,12 +1183,12 @@ function submitValidationToProvinsi(e) {
             fetchRegistryCards();
             showToast(data.message);
         } else {
-            alert('Gagal mengajukan: ' + (data.message || 'Terjadi kesalahan'));
+            showToast('Gagal mengajukan: ' + (data.message || 'Terjadi kesalahan'), false);
         }
     })
     .catch(err => {
         console.error(err);
-        alert('Terjadi kesalahan saat mengirim pengajuan pengesahan.');
+        showToast('Terjadi kesalahan saat mengirim pengajuan pengesahan.', false);
     })
     .finally(() => {
         if (btn) btn.disabled = false;

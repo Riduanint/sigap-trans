@@ -47,17 +47,6 @@ class UserSeeder extends Seeder
                 'position' => 'Operator Disnakertrans Kabupaten Tapin',
                 'is_active' => true,
             ],
-            [
-                'name' => 'Tim Pengendali Hak Tanah Kanwil BPN',
-                'nip' => '198001012005011001',
-                'email' => 'kanwil.bpn@atrbpn.go.id',
-                'password' => Hash::make('password123'),
-                'role' => 'mitra_bpn',
-                'regency_id' => null,
-                'phone' => '081234567893',
-                'position' => 'Mitra Sektoral - Kanwil BPN Provinsi Kalsel',
-                'is_active' => true,
-            ],
         ];
 
         foreach ($users as $user) {

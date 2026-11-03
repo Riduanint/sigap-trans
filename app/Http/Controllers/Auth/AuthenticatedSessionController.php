@@ -46,6 +46,13 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerateToken();
 
-        return redirect('/');
+        if ($request->filled('redirect_to')) {
+            $redirectTo = $request->input('redirect_to');
+            if (str_starts_with($redirectTo, '/') || str_starts_with($redirectTo, url('/'))) {
+                return redirect($redirectTo);
+            }
+        }
+
+        return redirect()->route('login')->with('status', 'Anda telah berhasil keluar dari sistem.');
     }
 }

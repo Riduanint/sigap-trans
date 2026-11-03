@@ -13,6 +13,7 @@ class UptLocation extends Model
 
     protected $fillable = [
         'regency_id',
+        'skp_id',
         'upt_number',
         'upt_name',
         'current_village_name',
@@ -55,6 +56,11 @@ class UptLocation extends Model
         return $this->belongsTo(Regency::class);
     }
 
+    public function skpArea(): BelongsTo
+    {
+        return $this->belongsTo(SkpArea::class, 'skp_id');
+    }
+
     public function changeRequests(): HasMany
     {
         return $this->hasMany(UptChangeRequest::class);
@@ -94,18 +100,21 @@ class UptLocation extends Model
      */
     public function toGeoJsonFeature(): array
     {
+        $hasCoords = !is_null($this->latitude) && !is_null($this->longitude) && (float)$this->latitude != 0;
+
         return [
             'type' => 'Feature',
             'id' => $this->id,
-            'geometry' => [
+            'geometry' => $hasCoords ? [
                 'type' => 'Point',
                 'coordinates' => [(float) $this->longitude, (float) $this->latitude],
-            ],
+            ] : null,
             'properties' => [
                 'upt_number' => $this->upt_number,
                 'upt_name' => $this->upt_name,
                 'current_village_name' => $this->current_village_name,
                 'regency_name' => $this->regency?->name,
+                'regency_id' => $this->regency_id,
                 'business_pattern' => $this->business_pattern,
                 'placement_year' => $this->placement_year,
                 'placement_kk' => $this->placement_kk,

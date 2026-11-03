@@ -3,7 +3,7 @@
 @php
     $isEdit = isset($user) && $user !== null;
     $old = fn (string $key, $default = null) => old($key, $isEdit ? $user->{$key} : $default);
-    $roleLabels = ['operator_kabupaten' => 'Operator wilayah kabupaten', 'super_admin' => 'Super Admin (provinsi)', 'eksekutif' => 'Eksekutif (Kadis/Kabid)', 'mitra_bpn' => 'Mitra Kanwil ATR/BPN'];
+    $roleLabels = ['operator_kabupaten' => 'Operator wilayah kabupaten', 'super_admin' => 'Super Admin (provinsi)', 'eksekutif' => 'Eksekutif (Kadis/Kabid)'];
 @endphp
 <section class="atlas-panel">
     <div class="atlas-panel-heading"><h2>Identitas aparatur</h2></div>
@@ -56,10 +56,13 @@
             </select>
             <p class="atlas-form-hint">Wajib untuk peran Operator wilayah; peran lain berkapasitas provinsi.</p>
         </div>
-        <div class="atlas-field atlas-field--wide">
-            <label class="atlas-form-hint" style="display: flex; align-items: center; gap: 9px; cursor: pointer;">
-                <input type="checkbox" name="is_active" value="1" {{ old('is_active', $isEdit ? $user->is_active : '1') ? 'checked' : '' }} style="width: 16px; height: 16px;">
-                <span style="font-size: 14px; color: var(--atlas-ink);">Akun aktif dan dapat masuk ke sistem</span>
+        <div class="atlas-field atlas-field--wide" style="margin-top: 8px;">
+            <label class="atlas-switch-control" for="is_active">
+                <input type="checkbox" name="is_active" id="is_active" value="1" {{ old('is_active', $isEdit ? $user->is_active : '1') ? 'checked' : '' }} class="atlas-switch-input">
+                <span class="atlas-switch-track" aria-hidden="true">
+                    <span class="atlas-switch-thumb"></span>
+                </span>
+                <span style="font-size: 14px; font-weight: 500; color: var(--atlas-ink);">Akun aktif dan dapat masuk ke sistem</span>
             </label>
         </div>
     </div>

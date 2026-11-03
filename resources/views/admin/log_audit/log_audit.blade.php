@@ -8,16 +8,40 @@
             <div class="atlas-field atlas-field--search"><label for="al-search">Cari log</label><input id="al-search" name="search" value="{{ request('search') }}" placeholder="Aksi, tabel, ID target, atau IP" type="search"></div>
             <div class="atlas-field"><label for="al-action">Aksi</label><select id="al-action" name="action"><option value="">Semua aksi</option>@foreach($availableActions as $act)<option value="{{ $act }}" @selected(request('action') === $act)>{{ $act }}</option>@endforeach</select></div>
             <div class="atlas-field"><label for="al-user">Pelaku</label><select id="al-user" name="user_id"><option value="">Semua pengguna</option>@foreach($users as $u)<option value="{{ $u->id }}" @selected(request('user_id') == $u->id)>{{ $u->name }}</option>@endforeach</select></div>
-            <div class="atlas-field"><label for="al-start">Dari tanggal</label><input id="al-start" type="date" name="start_date" value="{{ request('start_date') }}"></div>
-            <div class="atlas-field"><label for="al-end">s.d. tanggal</label><input id="al-end" type="date" name="end_date" value="{{ request('end_date') }}"></div>
-            <button class="atlas-button atlas-button--primary">Terapkan</button>
+            <div class="atlas-field atlas-field--date">
+                <label for="al-start">Dari tanggal</label>
+                <div class="atlas-input-icon-wrap">
+                    <input id="al-start" class="atlas-datepicker" type="text" name="start_date" value="{{ request('start_date') }}" placeholder="Pilih tanggal mulai" autocomplete="off" data-date-pair="#al-end" data-date-role="start">
+                    <span class="atlas-input-icon"><x-admin.icon name="calendar" /></span>
+                </div>
+            </div>
+            <div class="atlas-field atlas-field--date">
+                <label for="al-end">s.d. tanggal</label>
+                <div class="atlas-input-icon-wrap">
+                    <input id="al-end" class="atlas-datepicker" type="text" name="end_date" value="{{ request('end_date') }}" placeholder="Pilih tanggal akhir" autocomplete="off" data-date-pair="#al-start" data-date-role="end">
+                    <span class="atlas-input-icon"><x-admin.icon name="calendar" /></span>
+                </div>
+            </div>
         </div>
     </form>
     @if($activeFilters->isNotEmpty())
-        <div class="atlas-filter-chips">@foreach($activeFilters as $key => $value)<a href="{{ route('admin.audit-logs.index', request()->except([$key, 'page'])) }}" aria-label="Hapus filter {{ $key }}">{{ $key === 'user_id' ? $users->firstWhere('id', $value)?->name : $value }} <span aria-hidden="true">×</span></a>@endforeach<a href="{{ route('admin.audit-logs.index') }}">Hapus semua filter</a></div>
+        <div class="atlas-filter-chips">
+            @foreach($activeFilters as $key => $value)
+                @php
+                    $displayLabel = match($key) {
+                        'user_id' => $users->firstWhere('id', $value)?->name ?? $value,
+                        'start_date' => 'Dari: ' . rescue(fn () => \Carbon\Carbon::parse($value)->translatedFormat('d M Y'), $value),
+                        'end_date' => 's.d.: ' . rescue(fn () => \Carbon\Carbon::parse($value)->translatedFormat('d M Y'), $value),
+                        default => $value,
+                    };
+                @endphp
+                <a href="{{ route('admin.audit-logs.index', request()->except([$key, 'page'])) }}" aria-label="Hapus filter {{ $key }}">{{ $displayLabel }} <span aria-hidden="true">×</span></a>
+            @endforeach
+            <a href="{{ route('admin.audit-logs.index') }}">Hapus semua filter</a>
+        </div>
     @endif
     <div class="atlas-panel-heading"><h2>{{ number_format($logs->total(), 0, ',', '.') }} rekam jejak</h2><span class="atlas-muted">Terbaru lebih dulu · waktu WITA</span></div>
-    <div class="atlas-table-scroll"><table class="atlas-table"><thead><tr><th scope="col">Waktu</th><th scope="col">Pelaku</th><th scope="col">Aksi</th><th scope="col">Sasaran</th><th scope="col">IP</th><th scope="col">Rincian</th></tr></thead><tbody>
+    <div class="atlas-table-scroll"><table class="atlas-table"><thead><tr><th scope="col">Waktu</th><th scope="col">Pelaku</th><th scope="col">Aksi</th><th scope="col">Sasaran</th><th scope="col">IP</th><th scope="col" style="text-align: center; width: 70px;">AKSI</th></tr></thead><tbody>
         @forelse($logs as $log)
             <tr>
                 <td class="tabular-nums">{{ $log->created_at?->timezone('Asia/Makassar')->format('d M Y H:i') ?? '—' }}</td>
@@ -25,7 +49,7 @@
                 <td><span class="atlas-code">{{ $log->action }}</span></td>
                 <td>{{ $log->target_table }}<br><span class="atlas-muted">ID: {{ $log->target_id ?: '—' }}</span></td>
                 <td><span class="atlas-code">{{ $log->ip_address }}</span></td>
-                <td>@if(!empty($log->details))<button type="button" class="atlas-link" data-atlas-dialog-open="atlas-audit-dialog" data-atlas-dialog-focus="#atlas-audit-json" onclick="fillAuditDetails(this)" data-log="{{ json_encode($log->details) }}">Lihat</button>@else<span class="atlas-muted">—</span>@endif</td>
+                <td style="text-align: center;">@if(!empty($log->details))<div class="atlas-actions-cell" style="justify-content: center;"><button type="button" class="atlas-action-icon atlas-action-icon--detail" data-atlas-dialog-open="atlas-audit-dialog" data-atlas-dialog-focus="#atlas-audit-json" onclick="fillAuditDetails(this)" data-log="{{ json_encode($log->details) }}" title="Lihat Rincian Log" aria-label="Lihat Rincian"><x-admin.icon name="eye" /></button></div>@else<span class="atlas-muted">—</span>@endif</td>
             </tr>
         @empty
             <tr><td colspan="6"><div class="atlas-empty"><strong>Belum ada rekam jejak yang cocok.</strong><p>Ubah rentang waktu atau hapus sebagian filter.</p><a class="atlas-link" href="{{ route('admin.audit-logs.index') }}">Tampilkan seluruh log →</a></div></td></tr>

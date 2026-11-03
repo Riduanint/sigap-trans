@@ -18,14 +18,13 @@
             <div class="atlas-field"><label for="lc-regency">Kabupaten</label><select id="lc-regency" name="regency_id"><option value="">Semua kabupaten</option>@foreach($regencies as $regency)<option value="{{ $regency->id }}" @selected(request('regency_id') == $regency->id)>{{ $regency->name }}</option>@endforeach</select></div>
             <div class="atlas-field"><label for="lc-shm">Status sertipikat</label><select id="lc-shm" name="shm_status"><option value="">Semua status</option>@foreach(['100% SHM', 'Sebagian SHM', 'Proses BPN', 'Belum SHM', 'Sengketa'] as $shmOption)<option value="{{ $shmOption }}" @selected(request('shm_status') === $shmOption)>{{ $shmOption }}</option>@endforeach</select></div>
             <div class="atlas-field"><label for="lc-issue">Kondisi lahan</label><select id="lc-issue" name="issue_status"><option value="">Semua kondisi</option>@foreach(['clean' => 'Clean & Clear', 'warning' => 'Monitoring', 'critical' => 'Prioritas mediasi'] as $value => $label)<option value="{{ $value }}" @selected(request('issue_status') === $value)>{{ $label }}</option>@endforeach</select></div>
-            <button class="atlas-button atlas-button--primary">Terapkan</button>
         </div>
     </form>
     @if($activeFilters->isNotEmpty())
         <div class="atlas-filter-chips">@foreach($activeFilters as $key => $value)<a href="{{ route('admin.sertifikat-tanah.index', request()->except([$key, 'page'])) }}" aria-label="Hapus filter {{ $key }}">{{ $key === 'regency_id' ? $regencies->firstWhere('id', $value)?->name : ($key === 'issue_status' ? ['clean' => 'Clean & Clear', 'warning' => 'Monitoring', 'critical' => 'Prioritas mediasi'][$value] : $value) }} <span aria-hidden="true">×</span></a>@endforeach<a href="{{ route('admin.sertifikat-tanah.index') }}">Hapus semua filter</a></div>
     @endif
     <div class="atlas-panel-heading"><h2>{{ number_format($uptLocations->total(), 0, ',', '.') }} lokasi ditemukan</h2><span class="atlas-muted">Status SHM kosong tampil sebagai “Belum tercatat”, bukan 100%</span></div>
-    <div class="atlas-table-scroll"><table class="atlas-table"><thead><tr><th scope="col">Identitas UPT</th><th scope="col">Sertipikat SHM</th><th scope="col">Kondisi lahan</th><th scope="col">Kapasitas (KK)</th><th scope="col">Catatan kendala</th><th scope="col">Tindakan</th></tr></thead><tbody>
+    <div class="atlas-table-scroll"><table class="atlas-table"><thead><tr><th scope="col">Identitas UPT</th><th scope="col">Sertipikat SHM</th><th scope="col">Kondisi lahan</th><th scope="col">Kapasitas (KK)</th><th scope="col">Catatan kendala</th><th scope="col" style="text-align: center; width: 100px;">AKSI</th></tr></thead><tbody>
         @forelse($uptLocations as $u)
             <tr id="row-upt-{{ $u->id }}">
                 <td><x-admin.upt-identity :upt="$u" /><span class="atlas-muted">Penempatan {{ $u->placement_year ?: 'belum tercatat' }}</span></td>
@@ -33,10 +32,14 @@
                 <td><x-admin.status :status="$u->issue_status ?? 'clean'" /></td>
                 <td class="tabular-nums">{{ number_format($u->placement_kk ?? 0, 0, ',', '.') }} awal<br><span class="atlas-muted">{{ number_format($u->handover_kk ?? 0, 0, ',', '.') }} serah terima</span></td>
                 <td>@if($u->notes_issue)<span title="{{ $u->notes_issue }}">{{ \Illuminate\Support\Str::limit($u->notes_issue, 90) }}</span>@else<span class="atlas-muted">Belum ada catatan</span>@endif</td>
-                <td>
-                    <div class="atlas-inline">
-                        <button type="button" class="atlas-button" data-atlas-dialog-open="atlas-land-dialog" data-atlas-dialog-focus="#atlas-land-shm" onclick="fillLandDialog({{ $u->id }}, {{ Illuminate\Support\Js::from('UPT-' . str_pad($u->upt_number, 3, '0', STR_PAD_LEFT) . ' · ' . $u->upt_name) }}, {{ Illuminate\Support\Js::from($u->shm_status ?: '') }}, {{ Illuminate\Support\Js::from($u->issue_status ?? 'clean') }}, {{ Illuminate\Support\Js::from($u->notes_issue ?? '') }})">Perbarui</button>
-                        <a class="atlas-link" href="{{ route('admin.upt.show', ['id' => $u->id, 'tab' => 'land']) }}">Detail →</a>
+                <td style="text-align: center;">
+                    <div class="atlas-actions-cell" style="justify-content: center; gap: 6px;">
+                        <button type="button" class="atlas-action-icon atlas-action-icon--edit" data-atlas-dialog-open="atlas-land-dialog" data-atlas-dialog-focus="#atlas-land-shm" onclick="fillLandDialog({{ $u->id }}, {{ Illuminate\Support\Js::from('UPT-' . str_pad($u->upt_number, 3, '0', STR_PAD_LEFT) . ' · ' . $u->upt_name) }}, {{ Illuminate\Support\Js::from($u->shm_status ?: '') }}, {{ Illuminate\Support\Js::from($u->issue_status ?? 'clean') }}, {{ Illuminate\Support\Js::from($u->notes_issue ?? '') }})" title="Perbarui Status Pertanahan" aria-label="Perbarui">
+                            <x-admin.icon name="edit" />
+                        </button>
+                        <a href="{{ route('admin.upt.show', ['id' => $u->id, 'tab' => 'land']) }}" class="atlas-action-icon atlas-action-icon--detail" title="Lihat Detail Pertanahan" aria-label="Detail">
+                            <x-admin.icon name="eye" />
+                        </a>
                     </div>
                 </td>
             </tr>
@@ -85,8 +88,17 @@ function fillLandDialog(id, title, shm, issue, notes) {
     document.getElementById('atlas-land-issue').value = issue || 'clean';
     document.getElementById('atlas-land-notes').value = notes || '';
 }
-function submitLandEdit(event) {
+async function submitLandEdit(event) {
     event.preventDefault();
+    if (window.confirmAtlas) {
+        const ok = await window.confirmAtlas({
+            title: 'Konfirmasi Status Pertanahan',
+            message: 'Simpan perubahan status SHM dan kondisi lahan UPT ini?',
+            type: 'warning',
+            confirmText: 'Ya, Simpan Status'
+        });
+        if (!ok) return;
+    }
     const id = document.getElementById('atlas-land-id').value;
     const submit = document.getElementById('atlas-land-submit');
     submit.disabled = true;
@@ -106,11 +118,22 @@ function submitLandEdit(event) {
     })
     .then(res => res.json())
     .then(data => {
-        if (!data.success) { alert('Gagal menyimpan: ' + (data.message || 'Terjadi kesalahan')); return; }
-        closeAtlasDialog('atlas-land-dialog');
-        location.reload();
+        if (!data.success) {
+            window.showToast ? showToast('Gagal menyimpan: ' + (data.message || 'Terjadi kesalahan'), 'error') : alert('Gagal menyimpan: ' + (data.message || 'Terjadi kesalahan'));
+            return;
+        }
+        if (typeof window.closeAtlasDialog === 'function') {
+            window.closeAtlasDialog('atlas-land-dialog');
+        } else {
+            const dlg = document.getElementById('atlas-land-dialog');
+            if (dlg) dlg.removeAttribute('open');
+        }
+        window.showToast ? window.showToast(data.message || 'Status pertanahan berhasil diperbarui.', 'success') : null;
+        setTimeout(() => location.reload(), 800);
     })
-    .catch(() => alert('Terjadi kesalahan saat menyimpan status pertanahan.'))
+    .catch(() => {
+        window.showToast ? showToast('Terjadi kesalahan saat menyimpan status pertanahan.', 'error') : alert('Terjadi kesalahan saat menyimpan status pertanahan.');
+    })
     .finally(() => { submit.disabled = false; submit.textContent = 'Simpan status'; });
 }
 </script>

@@ -171,6 +171,8 @@ class FamilyCardManagementController extends Controller
 
         $card = UptFamilyCard::create($validated);
 
+        $sync = $this->autoSyncUptAggregate($upt->id, $card->stage);
+
         AuditLog::log(
             'CREATE_FAMILY_CARD',
             'upt_family_cards',
@@ -185,6 +187,7 @@ class FamilyCardManagementController extends Controller
             'success' => true,
             'message' => "Data KK '{$card->head_of_family_name}' berhasil ditambahkan ke registri!",
             'data' => $card,
+            'sync' => $sync,
         ]);
     }
 
@@ -239,6 +242,8 @@ class FamilyCardManagementController extends Controller
         $oldData = $card->toArray();
         $card->update($validated);
 
+        $sync = $this->autoSyncUptAggregate($card->upt_location_id, $card->stage);
+
         AuditLog::log(
             'UPDATE_FAMILY_CARD',
             'upt_family_cards',
@@ -254,6 +259,7 @@ class FamilyCardManagementController extends Controller
             'success' => true,
             'message' => "Data KK '{$card->head_of_family_name}' berhasil diperbarui!",
             'data' => $card,
+            'sync' => $sync,
         ]);
     }
 
@@ -294,6 +300,8 @@ class FamilyCardManagementController extends Controller
 
         $card->delete();
 
+        $sync = $this->autoSyncUptAggregate($card->upt_location_id, $stage);
+
         AuditLog::log(
             'DELETE_FAMILY_CARD',
             'upt_family_cards',
@@ -306,6 +314,7 @@ class FamilyCardManagementController extends Controller
         return response()->json([
             'success' => true,
             'message' => "Data KK '{$cardName}' berhasil dihapus dari registri.",
+            'sync' => $sync,
         ]);
     }
 
@@ -521,6 +530,8 @@ class FamilyCardManagementController extends Controller
             fclose($handle);
         }
 
+        $sync = $this->autoSyncUptAggregate($upt->id, $stage);
+
         AuditLog::log(
             'IMPORT_FAMILY_CARDS',
             'upt_family_cards',
@@ -538,6 +549,7 @@ class FamilyCardManagementController extends Controller
             'message' => "Berhasil mengimpor {$importedCount} data KK transmigran!" . ($skippedCount > 0 ? " ({$skippedCount} baris dilewati karena nama kosong)." : ""),
             'imported_count' => $importedCount,
             'skipped_count' => $skippedCount,
+            'sync' => $sync,
         ]);
     }
 
@@ -690,5 +702,41 @@ class FamilyCardManagementController extends Controller
                 'total_all_handover_pop' => UptLocation::sum('handover_population'),
             ]
         ]);
+    }
+
+    /**
+     * Otomatis sinkronkan angka agregat master UPT saat ada perubahan nominal KK
+     */
+    public function autoSyncUptAggregate(int $uptId, string $stage): array
+    {
+        $upt = UptLocation::find($uptId);
+        if (!$upt) {
+            return [];
+        }
+
+        $stageCards = UptFamilyCard::where('upt_location_id', $uptId)->where('stage', $stage);
+        $countKk = (int) (clone $stageCards)->count();
+        $countPop = (int) (clone $stageCards)->sum('family_members_count');
+
+        if ($stage === 'handover') {
+            $upt->handover_kk = $countKk;
+            $upt->handover_population = $countPop;
+        } else {
+            $upt->placement_kk = $countKk;
+            $upt->placement_population = $countPop;
+        }
+        $upt->is_verified = true;
+        $upt->save();
+
+        return [
+            'upt_id' => $upt->id,
+            'stage' => $stage,
+            'count_kk' => $countKk,
+            'count_pop' => $countPop,
+            'placement_kk' => $upt->placement_kk,
+            'placement_population' => $upt->placement_population,
+            'handover_kk' => $upt->handover_kk,
+            'handover_population' => $upt->handover_population,
+        ];
     }
 }

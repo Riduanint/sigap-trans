@@ -92,7 +92,85 @@ class PlacementManagementController extends Controller
         $regencies = Regency::withCount('uptLocations')->orderBy('id')->get();
         $patterns = UptLocation::select('business_pattern')->distinct()->orderBy('business_pattern')->pluck('business_pattern');
 
-        return view('admin.penempatan_awal.penempatan_awal', compact('uptLocations', 'regencies', 'patterns', 'stats'));
+        // UPT yang belum memiliki data penempatan awal (UPT baru)
+        $uptWithoutPlacement = UptLocation::with('regency')
+            ->where(function ($q) {
+                $q->whereNull('placement_year')
+                  ->orWhere('placement_year', '')
+                  ->orWhere('placement_kk', '<=', 0);
+            })
+            ->orderBy('upt_number')
+            ->get();
+
+        // Seluruh UPT untuk opsi pendaftaran / mutasi penempatan
+        $allUpts = UptLocation::with('regency')->orderBy('upt_number')->get();
+
+        return view('admin.penempatan_awal.penempatan_awal', compact('uptLocations', 'regencies', 'patterns', 'stats', 'uptWithoutPlacement', 'allUpts'));
+    }
+
+    /**
+     * Catat Data Penempatan Awal Baru untuk UPT yang belum memiliki data
+     */
+    public function store(Request $request): JsonResponse|RedirectResponse
+    {
+        $validated = $request->validate([
+            'upt_id' => ['required', 'exists:upt_locations,id'],
+            'placement_kk' => ['required', 'integer', 'min:1'],
+            'placement_population' => ['required', 'integer', 'min:1'],
+            'placement_year' => ['nullable', 'string', 'max:50'],
+            'start_year' => ['nullable', 'integer', 'min:1945', 'max:2100'],
+            'end_year' => ['nullable', 'integer', 'min:1945', 'max:2100'],
+        ]);
+
+        $upt = UptLocation::findOrFail($validated['upt_id']);
+
+        // Formulasi kisaran tahun jika start_year atau end_year diisi
+        $placementYear = $validated['placement_year'] ?? null;
+        if (!empty($validated['start_year'])) {
+            $sy = (int) $validated['start_year'];
+            $ey = !empty($validated['end_year']) ? (int) $validated['end_year'] : $sy;
+            $placementYear = ($sy !== $ey) ? (min($sy, $ey) . '–' . max($sy, $ey)) : (string) $sy;
+        }
+
+        if (empty($placementYear)) {
+            $placementYear = date('Y');
+        }
+
+        $oldData = [
+            'placement_kk' => $upt->placement_kk,
+            'placement_population' => $upt->placement_population,
+            'placement_year' => $upt->placement_year,
+        ];
+
+        $upt->update([
+            'placement_kk' => $validated['placement_kk'],
+            'placement_population' => $validated['placement_population'],
+            'placement_year' => $placementYear,
+        ]);
+
+        AuditLog::log(
+            'CREATE_PLACEMENT_RECORD',
+            'upt_locations',
+            $upt->id,
+            [
+                'message' => "Mencatat Data Penempatan Awal Baru UPT-{$upt->upt_number} ({$upt->upt_name}) Kisaran Tahun: {$placementYear}",
+                'old' => $oldData,
+                'new' => [
+                    'placement_kk' => $validated['placement_kk'],
+                    'placement_population' => $validated['placement_population'],
+                    'placement_year' => $placementYear,
+                ],
+            ]
+        );
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => "Data Penempatan Awal UPT-{$upt->upt_number} ({$upt->upt_name}) berhasil disimpan!",
+            ]);
+        }
+
+        return redirect()->route('admin.placements.index')->with('success', "Data Penempatan Awal UPT-{$upt->upt_number} ({$upt->upt_name}) berhasil dicatat.");
     }
 
     /**
@@ -105,8 +183,22 @@ class PlacementManagementController extends Controller
         $validated = $request->validate([
             'placement_kk' => ['required', 'integer', 'min:0'],
             'placement_population' => ['required', 'integer', 'min:0'],
-            'placement_year' => ['required', 'string', 'max:50'],
+            'placement_year' => ['nullable', 'string', 'max:50'],
+            'start_year' => ['nullable', 'integer', 'min:1945', 'max:2100'],
+            'end_year' => ['nullable', 'integer', 'min:1945', 'max:2100'],
         ]);
+
+        // Formulasi kisaran tahun jika start_year atau end_year diisi
+        $placementYear = $validated['placement_year'] ?? null;
+        if (!empty($validated['start_year'])) {
+            $sy = (int) $validated['start_year'];
+            $ey = !empty($validated['end_year']) ? (int) $validated['end_year'] : $sy;
+            $placementYear = ($sy !== $ey) ? (min($sy, $ey) . '–' . max($sy, $ey)) : (string) $sy;
+        }
+
+        if ($placementYear !== null) {
+            $validated['placement_year'] = $placementYear;
+        }
 
         $oldData = [
             'placement_kk' => $upt->placement_kk,
@@ -114,7 +206,11 @@ class PlacementManagementController extends Controller
             'placement_year' => $upt->placement_year,
         ];
 
-        $upt->update($validated);
+        $upt->update([
+            'placement_kk' => $validated['placement_kk'],
+            'placement_population' => $validated['placement_population'],
+            'placement_year' => $validated['placement_year'] ?? $upt->placement_year,
+        ]);
 
         // Catat di Audit Log
         AuditLog::log(
@@ -131,7 +227,7 @@ class PlacementManagementController extends Controller
         if ($request->wantsJson() || $request->ajax()) {
             return response()->json([
                 'success' => true,
-                'message' => "Data KK Penempatan Awal UPT-{$upt->upt_number} ({$upt->upt_name}) berhasil disimpan!",
+                'message' => "Rekapitulasi penempatan awal UPT-{$upt->upt_number} ({$upt->upt_name}) berhasil diperbarui.",
                 'data' => [
                     'id' => $upt->id,
                     'upt_number' => $upt->upt_number,
@@ -145,7 +241,7 @@ class PlacementManagementController extends Controller
             ]);
         }
 
-        return redirect()->back()->with('success', "Data KK Penempatan Awal UPT-{$upt->upt_number} ({$upt->upt_name}) berhasil diperbarui.");
+        return redirect()->back()->with('success', "Rekapitulasi penempatan awal UPT-{$upt->upt_number} ({$upt->upt_name}) berhasil diperbarui.");
     }
 
     /**

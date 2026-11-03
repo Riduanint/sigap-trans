@@ -23,7 +23,13 @@ class DashboardController extends Controller
             ->orderBy('upt_number')->get();
         $pendingQuery = UptChangeRequest::with(['uptLocation.regency', 'user'])
             ->where('status', 'pending')
-            ->when($request->filled('regency_id'), fn ($query) => $query->whereHas('uptLocation', fn ($upt) => $upt->where('regency_id', $request->integer('regency_id'))));
+            ->when($request->filled('regency_id'), function ($query) use ($request) {
+                $regId = $request->integer('regency_id');
+                $query->where(function ($q) use ($regId) {
+                    $q->whereHas('uptLocation', fn ($upt) => $upt->where('regency_id', $regId))
+                      ->orWhereRaw("(proposed_payload->>'regency_id')::int = ?", [$regId]);
+                });
+            });
         $pendingApprovals = (clone $pendingQuery)->count();
         $pendingRequests = $pendingQuery->oldest()->orderBy('id')->limit(5)->get();
         $priorityCases = $locations->where('issue_status', 'critical');

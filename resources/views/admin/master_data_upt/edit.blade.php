@@ -8,7 +8,7 @@
     <x-admin.upt-identity :upt="$upt" :link="false" />
     <x-admin.status :status="$upt->issue_status" />
 </section>
-<form method="POST" action="{{ route('admin.upt.update', $upt->id) }}" class="atlas-stack">
+<form method="POST" action="{{ route('admin.upt.update', $upt->id) }}" enctype="multipart/form-data" class="atlas-stack" data-confirm="Simpan seluruh perubahan profil dan atribut wilayah UPT ini?" data-confirm-title="Konfirmasi Perubahan UPT" data-confirm-type="warning" data-confirm-button="Ya, Simpan Perubahan">
     @csrf
     @method('PUT')
     @include('admin.master_data_upt.partials.upt-form', ['upt' => $upt])

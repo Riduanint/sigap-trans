@@ -2,9 +2,12 @@
 
 @section('atlas_subtitle', $currentRegency
     ? 'Inventarisasi UPT Binaan Kabupaten ' . $currentRegency->name
-    : 'Inventarisasi seluruh UPT Kalimantan Selatan — tinjau data lapangan, catat registri, dan ajukan pemutakhiran.')
+    : ($regencies->count() === 9
+        ? 'Inventarisasi seluruh UPT Kalimantan Selatan — tinjau data lapangan, catat registri, dan ajukan pemutakhiran.'
+        : 'Inventarisasi UPT wilayah publikasi (' . $regencies->count() . ' kabupaten aktif) — tinjau data lapangan, catat registri, dan ajukan pemutakhiran.'))
 @section('atlas_actions')
-    <a class="atlas-button atlas-button--primary" href="{{ route('operator.requests.create') }}"><x-admin.icon name="plus" /> Ajukan draf usulan</a>
+    <a class="atlas-button" href="{{ route('operator.requests.create-new-upt') }}"><x-admin.icon name="plus" /> Usulkan UPT baru</a>
+    <a class="atlas-button atlas-button--primary" href="{{ route('operator.requests.create') }}"><x-admin.icon name="check" /> Ajukan pemutakhiran</a>
 @endsection
 
 @section('content')
@@ -18,7 +21,7 @@
             <div class="atlas-field">
                 <label for="op-upt-regency">Kabupaten</label>
                 <select id="op-upt-regency" name="regency_id">
-                    <option value="all" @selected($selectedRegencyId === 'all')>Semua kabupaten</option>
+                    <option value="all" @selected($selectedRegencyId === 'all')>{{ $regencies->count() === 9 ? 'Semua kabupaten' : 'Semua kabupaten aktif (' . $regencies->count() . ')' }}</option>
                     @foreach($regencies as $regency)
                         <option value="{{ $regency->id }}" @selected((string) $selectedRegencyId === (string) $regency->id)>{{ $regency->name }}</option>
                     @endforeach
@@ -41,7 +44,6 @@
                     @endforeach
                 </select>
             </div>
-            <button class="atlas-button atlas-button--primary">Terapkan</button>
         </div>
     </form>
     @php
@@ -71,7 +73,7 @@
                     <th scope="col">Permasalahan</th>
                     <th scope="col">Sertifikasi SHM</th>
                     <th scope="col">Registri</th>
-                    <th scope="col">Tindakan</th>
+                    <th scope="col" style="text-align: center; width: 70px;">AKSI</th>
                 </tr>
             </thead>
             <tbody>
@@ -96,7 +98,13 @@
                                 <a class="atlas-link" href="{{ route('operator.upt.registri', $upt->id) }}">Belum terdata</a>
                             @endif
                         </td>
-                        <td><a class="atlas-link" href="{{ route('operator.requests.create', ['upt_id' => $upt->id]) }}">Ajukan usulan</a></td>
+                        <td style="text-align: center;">
+                            <div class="atlas-actions-cell" style="justify-content: center;">
+                                <a href="{{ route('operator.requests.create', ['upt_id' => $upt->id]) }}" class="atlas-action-icon atlas-action-icon--create" title="Ajukan Usulan Pemutakhiran" aria-label="Ajukan Usulan">
+                                    <x-admin.icon name="plus" />
+                                </a>
+                            </div>
+                        </td>
                     </tr>
                 @empty
                     <tr>

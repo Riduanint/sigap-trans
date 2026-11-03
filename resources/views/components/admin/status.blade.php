@@ -4,7 +4,7 @@
         'clean' => ['clean', 'Clean & Clear'],
         'warning' => ['warning', 'Monitoring'],
         'critical' => ['critical', 'Prioritas mediasi'],
-        'pending' => ['warning', 'Menunggu'],
+        'pending' => ['warning', 'Diproses'],
         'approved' => ['clean', 'Disetujui'],
         'rejected' => ['critical', 'Ditolak'],
         default => ['neutral', 'Belum tercatat'],

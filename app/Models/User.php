@@ -92,11 +92,6 @@ class User extends Authenticatable
         return $this->role === 'eksekutif';
     }
 
-    public function isBpn(): bool
-    {
-        return $this->role === 'mitra_bpn';
-    }
-
     /**
      * Jumlah draf usulan milik operator yang masih menunggu verifikasi
      * (dipakai badge sidebar Atlas).

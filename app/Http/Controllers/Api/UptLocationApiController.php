@@ -107,6 +107,9 @@ class UptLocationApiController extends Controller
     {
         $upt = UptLocation::with(['regency', 'documents'])->findOrFail($id);
 
+        $isAuth = auth()->check();
+        $isOperator = $isAuth && auth()->user()->isOperator();
+
         return response()->json([
             'success' => true,
             'data' => [
@@ -131,6 +134,7 @@ class UptLocationApiController extends Controller
                 'longitude' => $upt->longitude,
                 'shm_status' => $upt->shm_status,
                 'polygon_geojson' => $upt->polygon_geojson,
+                'is_authenticated' => $isAuth,
                 'documents_count' => $upt->documents->count(),
                 'documents' => $upt->documents->map(fn ($doc) => [
                     'id' => $doc->id,
@@ -138,6 +142,7 @@ class UptLocationApiController extends Controller
                     'document_number' => $doc->document_number,
                     'file_name' => $doc->file_name,
                     'file_size_kb' => $doc->file_size_kb,
+                    'download_url' => $isAuth ? route($isOperator ? 'operator.documents.download' : 'admin.documents.download', $doc->id) : null,
                 ]),
             ],
         ]);
@@ -260,4 +265,217 @@ class UptLocationApiController extends Controller
             'per_regency' => $perRegency,
         ]);
     }
+
+    /**
+     * Batas poligon GeoJSON Kawasan Transmigrasi SKP se-Kalsel (Dinamis dari database)
+     */
+    public function skpLocations(Request $request): JsonResponse
+    {
+        $query = \App\Models\SkpArea::with(['regency', 'villages'])
+            ->where('is_active', true)
+            ->whereNotNull('polygon_geojson');
+
+        if ($request->filled('regency_id') && $request->regency_id !== 'all') {
+            $query->where('regency_id', $request->regency_id);
+        }
+
+        $skps = $query->get();
+
+        // Jika data database belum ada poligonnya dan request ke Batola, fallback ke file statis
+        if ($skps->isEmpty() && (! $request->filled('regency_id') || (int)$request->regency_id === 6)) {
+            return $this->skpCahayaBaru();
+        }
+
+        $features = $skps->map(fn($skp) => $skp->toGeoJsonFeature())->values();
+
+        return response()->json([
+            'type' => 'FeatureCollection',
+            'name' => 'SKP_Kawasan_Transmigrasi_Kalsel',
+            'features' => $features,
+        ], 200, [
+            'Cache-Control' => 'public, max-age=3600',
+        ]);
+    }
+
+    /**
+     * Batas poligon GeoJSON Kawasan Transmigrasi SKP Cahaya Baru (Barito Kuala)
+     */
+    public function skpCahayaBaru(): JsonResponse
+    {
+        $geojsonPath = public_path('data/skp_cahaya_baru.geojson');
+
+        if (! file_exists($geojsonPath)) {
+            return response()->json([
+                'type' => 'FeatureCollection',
+                'features' => [],
+            ], 404);
+        }
+
+        $geojson = json_decode(file_get_contents($geojsonPath), true);
+
+        return response()->json($geojson, 200, [
+            'Cache-Control' => 'public, max-age=86400',
+        ]);
+    }
+
+    /**
+     * Detail 1 SKP Kawasan Transmigrasi beserta cakupan seluruh desa dan agregat kependudukan
+     */
+    public function showSkp(string|int $id): JsonResponse
+    {
+        $skp = \App\Models\SkpArea::with(['regency', 'villages.uptLocation', 'uptLocations'])
+            ->where(function ($query) use ($id) {
+                if (is_numeric($id)) {
+                    $query->where('id', (int) $id);
+                } else {
+                    $query->where('unit_code', $id)
+                          ->orWhere('skp_name', $id);
+                }
+            })
+            ->first();
+
+        if (! $skp) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Data Kawasan SKP tidak ditemukan.',
+            ], 404);
+        }
+
+        // Jika data SKP ini belum memiliki relasi desa langsung (misal akibat beda format nama SKP B vs SKP-B),
+        // cari desa dari SKP dengan unit_code dan kabupaten yang sama
+        $villagesCollection = $skp->villages;
+        if ($villagesCollection->isEmpty() && ! empty($skp->unit_code)) {
+            $sisterSkp = \App\Models\SkpArea::with('villages.uptLocation')
+                ->where('regency_id', $skp->regency_id)
+                ->where('unit_code', $skp->unit_code)
+                ->where('id', '!=', $skp->id)
+                ->whereHas('villages')
+                ->first();
+
+            if ($sisterSkp) {
+                $villagesCollection = $sisterSkp->villages;
+            }
+        }
+
+        $villages = $villagesCollection->map(function ($village) {
+            return [
+                'id' => $village->id,
+                'village_name' => $village->village_name,
+                'district_name' => $village->district_name,
+                'area_km2' => (float) $village->area_km2,
+                'area_km2_formatted' => number_format((float) $village->area_km2, 2, ',', '.'),
+                'population_male' => (int) $village->population_male,
+                'population_female' => (int) $village->population_female,
+                'population_total' => (int) $village->population_total,
+                'family_count' => (int) $village->family_count,
+                'notes' => $village->notes,
+                'upt_id' => $village->upt_location_id,
+                'upt_name' => $village->uptLocation?->upt_name,
+            ];
+        })->values();
+
+        // Cari bounding box poligon SKP
+        $polygon = $skp->polygon_geojson;
+        if (empty($polygon) && ! empty($skp->unit_code)) {
+            $sisterWithPoly = \App\Models\SkpArea::where('regency_id', $skp->regency_id)
+                ->where('unit_code', $skp->unit_code)
+                ->whereNotNull('polygon_geojson')
+                ->first();
+            if ($sisterWithPoly) {
+                $polygon = $sisterWithPoly->polygon_geojson;
+            }
+        }
+
+        $bbox = null;
+        if (! empty($polygon)) {
+            $geometry = $polygon['geometry'] ?? $polygon;
+            $coords = $geometry['coordinates'] ?? [];
+            if (! empty($coords)) {
+                $minLng = PHP_INT_MAX; $minLat = PHP_INT_MAX;
+                $maxLng = -PHP_INT_MAX; $maxLat = -PHP_INT_MAX;
+
+                $flatten = function ($arr) use (&$flatten, &$minLng, &$minLat, &$maxLng, &$maxLat) {
+                    if (isset($arr[0]) && is_numeric($arr[0]) && isset($arr[1]) && is_numeric($arr[1])) {
+                        $minLng = min($minLng, (float) $arr[0]);
+                        $maxLng = max($maxLng, (float) $arr[0]);
+                        $minLat = min($minLat, (float) $arr[1]);
+                        $maxLat = max($maxLat, (float) $arr[1]);
+                    } else {
+                        foreach ($arr as $item) {
+                            if (is_array($item)) {
+                                $flatten($item);
+                            }
+                        }
+                    }
+                };
+
+                $flatten($coords);
+                if ($minLng !== PHP_INT_MAX && $minLat !== PHP_INT_MAX) {
+                    $bbox = [$minLng, $minLat, $maxLng, $maxLat];
+                }
+            }
+        }
+
+        $isAuth = auth()->check();
+
+        if (! $isAuth) {
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'id' => $skp->id,
+                    'skp_name' => $skp->skp_name,
+                    'unit_code' => $skp->unit_code,
+                    'kawasan_name' => $skp->kawasan_name,
+                    'regency_id' => $skp->regency_id,
+                    'regency_name' => $skp->regency?->name,
+                    'luas_ha' => (float) $skp->luas_ha,
+                    'luas_formatted' => number_format((float) $skp->luas_ha, 2, ',', '.'),
+                    'color' => $skp->color ?: '#163A63',
+                    'keterangan' => $skp->keterangan,
+                    'sumber_data' => $skp->sumber_data ?: 'DPMD & BIG',
+                    'centroid_lat' => (float) $skp->centroid_lat,
+                    'centroid_lng' => (float) $skp->centroid_lng,
+                    'bbox' => $bbox,
+                    'is_authenticated' => false,
+                ],
+            ]);
+        }
+
+        $totalMale = (int) $villagesCollection->sum('population_male');
+        $totalFemale = (int) $villagesCollection->sum('population_female');
+        $totalPop = (int) $villagesCollection->sum('population_total');
+        $totalKk = (int) $villagesCollection->sum('family_count');
+        $totalVillageKm2 = (float) $villagesCollection->sum('area_km2');
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'id' => $skp->id,
+                'skp_name' => $skp->skp_name,
+                'unit_code' => $skp->unit_code,
+                'kawasan_name' => $skp->kawasan_name,
+                'regency_id' => $skp->regency_id,
+                'regency_name' => $skp->regency?->name,
+                'luas_ha' => (float) $skp->luas_ha,
+                'luas_formatted' => number_format((float) $skp->luas_ha, 2, ',', '.'),
+                'color' => $skp->color ?: '#163A63',
+                'keterangan' => $skp->keterangan,
+                'sumber_data' => $skp->sumber_data ?: 'DPMD & BIG',
+                'centroid_lat' => (float) $skp->centroid_lat,
+                'centroid_lng' => (float) $skp->centroid_lng,
+                'total_population' => $totalPop,
+                'total_male' => $totalMale,
+                'total_female' => $totalFemale,
+                'total_family_count' => $totalKk,
+                'total_village_area_km2' => $totalVillageKm2,
+                'total_village_area_km2_formatted' => number_format($totalVillageKm2, 2, ',', '.'),
+                'villages_count' => $villages->count(),
+                'villages' => $villages,
+                'bbox' => $bbox,
+                'is_authenticated' => true,
+            ],
+        ]);
+    }
 }
+
+
