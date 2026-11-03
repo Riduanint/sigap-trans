@@ -3,6 +3,9 @@
 .env
 .env.backup
 .env.production
+.env.*.local
+.env.local
+.env.testing
 .phpactor.json
 .phpunit.result.cache
 /.fleet
@@ -22,9 +25,41 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+desktop.ini
+ehthumbs.db
+$RECYCLE.BIN/
+.AppleDouble
+.LSOverride
+
+# Local / Agent notes & workspace
 AGENTS.md
 /.Bahan
 planning.md
-progress.md
+progres.md
 skills-lock.json
+/.agents
 
+# Scratch & Local Development Scripts
+/scratch
+
+# Python cache & virtualenv
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+
+# Database Dumps & Local Backups
+*.sql
+*.sqlite
+*.sqlite-journal
+*.dump
+*.bak
+
+# Package Manager Logs & Testing Cache
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pest/
+coverage/

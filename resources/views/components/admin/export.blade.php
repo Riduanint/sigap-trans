@@ -7,7 +7,13 @@
         'admin.sertifikat-tanah.index' => ['admin.sertifikat-tanah.pdf' => 'Pertanahan · PDF', 'admin.sertifikat-tanah.export' => 'Pertanahan · CSV'],
         'admin.documents.index' => ['admin.documents.pdf' => 'Daftar dokumen · PDF'],
         'admin.regencies.index' => ['admin.regencies.pdf' => 'Wilayah · PDF'],
-        'admin.analitik.index' => ['admin.analitik.pdf' => 'Analitik · PDF', 'admin.reports.excel' => 'Rekap provinsi · Excel'],
+        'admin.analitik.index' => match(request('domain')) {
+            'skp' => ['admin.skp.pdf' => 'Laporan SKP · PDF'],
+            'kependudukan' => ['admin.placements.pdf' => 'Penempatan · PDF', 'admin.placements.export' => 'Penempatan · CSV', 'admin.handovers.pdf' => 'Serah terima · PDF'],
+            'pertanahan' => ['admin.sertifikat-tanah.pdf' => 'Pertanahan · PDF', 'admin.sertifikat-tanah.export' => 'Pertanahan · CSV'],
+            'dokumen' => ['admin.documents.pdf' => 'Arsip Dokumen · PDF'],
+            default => ['admin.analitik.pdf' => 'Analitik UPT · PDF', 'admin.reports.excel' => 'Rekap provinsi · Excel'],
+        },
         'admin.audit-logs.index' => ['admin.audit-logs.pdf' => 'Log aktivitas · PDF', 'admin.audit-logs.export' => 'Log aktivitas · CSV'],
         default => [],
     };
